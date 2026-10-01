@@ -1,0 +1,23 @@
+# Operation Abhedya-Chakra — Git Ignore Rules
+
+# Large transaction data & database stores
+data/
+*.csv
+*.parquet
+*.duckdb
+*.duckdb.wal
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# Editor & OS artifacts
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

@@ -1,0 +1,37 @@
+# Operation Abhedya-Chakra — Central System Configuration
+# Phase 2 - Step 0: Data Hardening Baseline
+# Note: Detection thresholds are NOT invented or guessed. Unknown values are explicitly set to null.
+
+paths:
+  raw_csv: "VoidHacks8_MuleAccount_2M_Transactions.csv"
+  duckdb_database: "data/transactions.duckdb"
+  parquet_file: "data/transactions.parquet"
+
+dataset_meta:
+  expected_rows: 2000000
+  expected_columns:
+    - "Transaction_ID"
+    - "Sender_Account"
+    - "Receiver_Account"
+    - "Sender_IFSC"
+    - "Receiver_IFSC"
+    - "Amount"
+    - "Timestamp"
+    - "Payment_Mode"
+    - "Narration"
+    - "IP_Address"
+    - "Device_Type"
+
+# Future detection thresholds (Must NOT be invented; set to null until Phase 2 empirical validation)
+detection_thresholds:
+  pass_through: null
+  fan_out: null
+  fan_in: null
+  amount_matching: null
+  hop_traversal: null
+  suspicious_indicators: null
+
+server:
+  host: "127.0.0.1"
+  port: 8000
+  debug: false

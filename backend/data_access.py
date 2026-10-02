@@ -240,3 +240,62 @@ def get_transactions_by_txn_id(transaction_id: str) -> List[Dict[str, Any]]:
         """
         rows = con.execute(query, [transaction_id]).fetchall()
         return [_row_to_dict(r) for r in rows]
+
+def get_connected_accounts(account_id: str, limit: int = 15) -> Dict[str, Any]:
+    """
+    Retrieves top incoming senders and outgoing receivers for a target account.
+    """
+    with get_db_cursor(read_only=True) as con:
+        in_rows = con.execute("""
+            SELECT 
+                Sender_Account as counterparty,
+                count(*) as txn_count,
+                round(sum(Amount), 2) as total_amount,
+                min(Timestamp) as first_seen,
+                max(Timestamp) as last_seen
+            FROM transactions
+            WHERE Receiver_Account = ?
+            GROUP BY Sender_Account
+            ORDER BY sum(Amount) DESC
+            LIMIT ?
+        """, [account_id, limit]).fetchall()
+
+        out_rows = con.execute("""
+            SELECT 
+                Receiver_Account as counterparty,
+                count(*) as txn_count,
+                round(sum(Amount), 2) as total_amount,
+                min(Timestamp) as first_seen,
+                max(Timestamp) as last_seen
+            FROM transactions
+            WHERE Sender_Account = ?
+            GROUP BY Receiver_Account
+            ORDER BY sum(Amount) DESC
+            LIMIT ?
+        """, [account_id, limit]).fetchall()
+
+        return {
+            "account_id": account_id,
+            "incoming_connected": [
+                {
+                    "account_id": r[0],
+                    "bank_prefix": r[0][:4],
+                    "txn_count": int(r[1]),
+                    "total_amount": float(r[2] or 0.0),
+                    "first_seen": str(r[3]),
+                    "last_seen": str(r[4])
+                }
+                for r in in_rows
+            ],
+            "outgoing_connected": [
+                {
+                    "account_id": r[0],
+                    "bank_prefix": r[0][:4],
+                    "txn_count": int(r[1]),
+                    "total_amount": float(r[2] or 0.0),
+                    "first_seen": str(r[3]),
+                    "last_seen": str(r[4])
+                }
+                for r in out_rows
+            ]
+        }

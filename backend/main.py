@@ -94,8 +94,10 @@ def get_transactions(
 from .detect import DetectionEngine
 from .context import build_context
 from .explain_template import generate_explanation
+from .explain_llm import generate_llm_explanation
 from .guardrails import validate
 from .trace import trace_onward_flow
+from .data_access import get_connected_accounts, get_transaction_by_row_id
 
 _detection_engine: Optional[DetectionEngine] = None
 
@@ -119,10 +121,13 @@ def detect_account(account_id: str) -> Dict[str, Any]:
     return engine.score_account(account_id)
 
 @app.get("/api/explain/{account_id}")
-def explain_account(account_id: str) -> Dict[str, Any]:
+def explain_account(
+    account_id: str,
+    engine: str = Query("deterministic", pattern="^(deterministic|qwen)$", description="Explanation engine")
+) -> Dict[str, Any]:
     """
-    Constructs self-contained evidence context, generates deterministic explanation,
-    and runs grounded guardrail validation.
+    Constructs self-contained evidence context, generates explanation (deterministic template or Qwen with guardrails),
+    and validates grounded guardrail compliance.
     """
     if not account_exists(account_id):
         raise HTTPException(
@@ -130,16 +135,54 @@ def explain_account(account_id: str) -> Dict[str, Any]:
             detail=f"Account '{account_id}' not found in transaction records."
         )
     context = build_context(account_id)
-    explanation = generate_explanation(context)
-    guardrail_result = validate(explanation, context)
+    
+    if engine == "qwen":
+        llm_res = generate_llm_explanation(context, model="qwen2.5:0.5b")
+        explanation = llm_res["explanation"]
+        guardrail_result = llm_res["guardrail_status"]
+        source = llm_res["source"]
+    else:
+        explanation = generate_explanation(context)
+        guardrail_result = validate(explanation, context)
+        source = "deterministic"
 
     return {
         "account_id": account_id,
         "risk_score": context.get("risk_score", 0),
         "explanation": explanation,
+        "explanation_source": source,
         "guardrail_status": guardrail_result,
         "context": context
     }
+
+@app.get("/api/connected/{account_id}")
+def get_account_connected(
+    account_id: str,
+    limit: int = Query(15, ge=1, le=50, description="Max connected counterparties")
+) -> Dict[str, Any]:
+    """
+    Retrieves top incoming senders and outgoing receivers for a target account.
+    Enables fast investigator pivoting between connected accounts.
+    """
+    if not account_exists(account_id):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Account '{account_id}' not found in transaction records."
+        )
+    return get_connected_accounts(account_id, limit=limit)
+
+@app.get("/api/transaction/{row_id}")
+def get_single_transaction(row_id: int) -> Dict[str, Any]:
+    """
+    Retrieves full transaction audit details by its stable row_id.
+    """
+    txn = get_transaction_by_row_id(row_id)
+    if not txn:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Transaction with row_id {row_id} not found."
+        )
+    return txn
 
 @app.get("/api/trace/{row_id}")
 def trace_transaction(

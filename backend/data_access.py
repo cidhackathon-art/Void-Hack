@@ -241,70 +241,282 @@ def get_transactions_by_txn_id(transaction_id: str) -> List[Dict[str, Any]]:
         rows = con.execute(query, [transaction_id]).fetchall()
         return [_row_to_dict(r) for r in rows]
 
+_SCORED_ACCOUNTS_CACHE = None
+
+def _get_score_lookup():
+    global _SCORED_ACCOUNTS_CACHE
+    if _SCORED_ACCOUNTS_CACHE is None:
+        from .detect import DetectionEngine
+        engine = DetectionEngine()
+        all_scores = engine.score_all_accounts_fast()
+        _SCORED_ACCOUNTS_CACHE = {a["account_id"]: a for a in all_scores}
+    return _SCORED_ACCOUNTS_CACHE
+
 def get_connected_accounts(account_id: str, limit: int = 15) -> Dict[str, Any]:
     """
     Retrieves top incoming senders and outgoing receivers for a target account,
-    along with total connected accounts count.
+    along with total connected accounts count and representative transaction details.
     """
     with get_db_cursor(read_only=True) as con:
-        in_rows = con.execute("""
+        txns = con.execute("""
             SELECT 
-                Sender_Account as counterparty,
-                count(*) as txn_count,
-                round(sum(Amount), 2) as total_amount,
-                min(Timestamp) as first_seen,
-                max(Timestamp) as last_seen
+                row_id,
+                Sender_Account,
+                Receiver_Account,
+                Amount,
+                Timestamp,
+                Payment_Mode
             FROM transactions
-            WHERE Receiver_Account = ?
-            GROUP BY Sender_Account
-            ORDER BY sum(Amount) DESC
-        """, [account_id]).fetchall()
+            WHERE Sender_Account = ? OR Receiver_Account = ?
+            ORDER BY Timestamp ASC, row_id ASC
+        """, [account_id, account_id]).fetchall()
 
-        out_rows = con.execute("""
+    in_txns = [r for r in txns if r[2] == account_id]
+    out_txns = [r for r in txns if r[1] == account_id]
+
+    # Map time gap to preceding incoming transaction for each outgoing transaction
+    out_time_gaps = {}
+    for ot in out_txns:
+        prior_in = [it for it in in_txns if it[4] < ot[4]]
+        if prior_in:
+            out_time_gaps[ot[0]] = int((ot[4] - prior_in[-1][4]).total_seconds())
+
+    # Group incoming by Sender_Account
+    in_grouped = {}
+    for r in in_txns:
+        in_grouped.setdefault(r[1], []).append(r)
+
+    # Group outgoing by Receiver_Account
+    out_grouped = {}
+    for r in out_txns:
+        out_grouped.setdefault(r[2], []).append(r)
+
+    in_list = []
+    for cp_id, t_list in in_grouped.items():
+        rep = max(t_list, key=lambda x: x[3])
+        tot = round(sum(x[3] for x in t_list), 2)
+        in_list.append({
+            "account_id": cp_id,
+            "bank_prefix": cp_id[:4],
+            "direction": "incoming",
+            "txn_count": len(t_list),
+            "total_amount": tot,
+            "first_seen": str(min(x[4] for x in t_list)),
+            "last_seen": str(max(x[4] for x in t_list)),
+            "sample_row_id": rep[0],
+            "sample_amount": round(rep[3], 2),
+            "sample_timestamp": str(rep[4]),
+            "sample_payment_mode": rep[5],
+            "time_gap_seconds": None
+        })
+    in_list.sort(key=lambda x: -x["total_amount"])
+
+    out_list = []
+    for cp_id, t_list in out_grouped.items():
+        rep = max(t_list, key=lambda x: x[3])
+        tot = round(sum(x[3] for x in t_list), 2)
+        out_list.append({
+            "account_id": cp_id,
+            "bank_prefix": cp_id[:4],
+            "direction": "outgoing",
+            "txn_count": len(t_list),
+            "total_amount": tot,
+            "first_seen": str(min(x[4] for x in t_list)),
+            "last_seen": str(max(x[4] for x in t_list)),
+            "sample_row_id": rep[0],
+            "sample_amount": round(rep[3], 2),
+            "sample_timestamp": str(rep[4]),
+            "sample_payment_mode": rep[5],
+            "time_gap_seconds": out_time_gaps.get(rep[0])
+        })
+    out_list.sort(key=lambda x: -x["total_amount"])
+
+    return {
+        "account_id": account_id,
+        "total_incoming_accounts": len(in_grouped),
+        "total_outgoing_accounts": len(out_grouped),
+        "total_connected_accounts": len(in_grouped) + len(out_grouped),
+        "incoming": in_list[:limit],
+        "outgoing": out_list[:limit],
+        "incoming_connected": in_list[:limit],
+        "outgoing_connected": out_list[:limit]
+    }
+
+
+def get_connected_summary(account_id: str, display_limit: int = 10) -> Dict[str, Any]:
+    """
+    Builds a complete Connected Accounts Summary from SQL over the transaction table.
+    Summary counts always reflect the COMPLETE SQL result.
+    The displayed neighbor list is capped at display_limit, ordered by total transaction amount.
+    Risk classifications come from the existing deterministic detection engine only.
+    """
+    with get_db_cursor(read_only=True) as con:
+        txns = con.execute("""
             SELECT 
-                Receiver_Account as counterparty,
-                count(*) as txn_count,
-                round(sum(Amount), 2) as total_amount,
-                min(Timestamp) as first_seen,
-                max(Timestamp) as last_seen
+                row_id,
+                Sender_Account,
+                Receiver_Account,
+                Amount,
+                Timestamp,
+                Payment_Mode
             FROM transactions
-            WHERE Sender_Account = ?
-            GROUP BY Receiver_Account
-            ORDER BY sum(Amount) DESC
-        """, [account_id]).fetchall()
+            WHERE Sender_Account = ? OR Receiver_Account = ?
+            ORDER BY Timestamp ASC, row_id ASC
+        """, [account_id, account_id]).fetchall()
 
-        in_list = [
-            {
-                "account_id": r[0],
-                "bank_prefix": r[0][:4],
-                "txn_count": int(r[1]),
-                "total_amount": float(r[2] or 0.0),
-                "first_seen": str(r[3]),
-                "last_seen": str(r[4])
-            }
-            for r in in_rows[:limit]
-        ]
+    in_txns = [r for r in txns if r[2] == account_id]
+    out_txns = [r for r in txns if r[1] == account_id]
 
-        out_list = [
-            {
-                "account_id": r[0],
-                "bank_prefix": r[0][:4],
-                "txn_count": int(r[1]),
-                "total_amount": float(r[2] or 0.0),
-                "first_seen": str(r[3]),
-                "last_seen": str(r[4])
-            }
-            for r in out_rows[:limit]
-        ]
+    # Calculate time gaps for outgoing transactions that follow an incoming transaction
+    out_time_gaps = {}
+    for ot in out_txns:
+        prior_in = [it for it in in_txns if it[4] < ot[4]]
+        if prior_in:
+            out_time_gaps[ot[0]] = int((ot[4] - prior_in[-1][4]).total_seconds())
 
-        return {
-            "account_id": account_id,
-            "total_incoming_accounts": len(in_rows),
-            "total_outgoing_accounts": len(out_rows),
-            "total_connected_accounts": len(in_rows) + len(out_rows),
-            "incoming": in_list,
-            "outgoing": out_list,
-            "incoming_connected": in_list,
-            "outgoing_connected": out_list
-        }
+    # Group incoming by Sender_Account
+    in_grouped = {}
+    for r in in_txns:
+        in_grouped.setdefault(r[1], []).append(r)
 
+    # Group outgoing by Receiver_Account
+    out_grouped = {}
+    for r in out_txns:
+        out_grouped.setdefault(r[2], []).append(r)
+
+    total_incoming_accounts = len(in_grouped)
+    total_outgoing_accounts = len(out_grouped)
+    all_counterparties = set(in_grouped.keys()) | set(out_grouped.keys())
+    distinct_connected = len(all_counterparties)
+    total_observed_transactions = len(txns)
+
+    total_incoming_inr = round(sum(r[3] for r in in_txns), 2)
+    total_outgoing_inr = round(sum(r[3] for r in out_txns), 2)
+
+    score_lookup = _get_score_lookup()
+
+    flagged_accounts = []
+    clean_accounts = []
+    tier_counts = {"Layer 1": 0, "Layer 2": 0, "Sinks": 0}
+    flagged_in_inr = 0.0
+    flagged_out_inr = 0.0
+    clean_in_inr = 0.0
+    clean_out_inr = 0.0
+
+    in_amt_map = {cp: sum(r[3] for r in t_list) for cp, t_list in in_grouped.items()}
+    out_amt_map = {cp: sum(r[3] for r in t_list) for cp, t_list in out_grouped.items()}
+
+    for cp_id in all_counterparties:
+        cp_score_data = score_lookup.get(cp_id)
+        risk_score = cp_score_data["risk_score"] if cp_score_data else 0
+        cp_in_amt = in_amt_map.get(cp_id, 0.0)
+        cp_out_amt = out_amt_map.get(cp_id, 0.0)
+
+        if risk_score >= 30:
+            flagged_accounts.append(cp_id)
+            flagged_in_inr += cp_in_amt
+            flagged_out_inr += cp_out_amt
+            if cp_score_data:
+                ind_sink = cp_score_data.get("ind_sink", 0)
+                if risk_score == 100:
+                    tier_counts["Layer 1"] += 1
+                elif ind_sink or risk_score == 40:
+                    tier_counts["Sinks"] += 1
+                else:
+                    tier_counts["Layer 2"] += 1
+        else:
+            clean_accounts.append(cp_id)
+            clean_in_inr += cp_in_amt
+            clean_out_inr += cp_out_amt
+
+    # Build neighbor list
+    all_neighbors = []
+    for cp_id, t_list in in_grouped.items():
+        rep = max(t_list, key=lambda x: x[3])
+        cp_score_data = score_lookup.get(cp_id, {})
+        cp_score = cp_score_data.get("risk_score", 0)
+        tot_amt = sum(x[3] for x in t_list)
+        if cp_score == 100:
+            classification = "Layer 1 Transit Core"
+        elif cp_score_data.get("ind_sink") or cp_score == 40:
+            classification = "Terminal Cash-Out Sink"
+        elif cp_score >= 30:
+            classification = "Layer 2 Dispersal & Routing"
+        else:
+            classification = "Clean Normal Baseline"
+
+        all_neighbors.append({
+            "account_id": cp_id,
+            "bank_prefix": cp_id[:4],
+            "direction": "incoming",
+            "txn_count": len(t_list),
+            "total_amount": round(tot_amt, 2),
+            "first_seen": str(min(x[4] for x in t_list)),
+            "last_seen": str(max(x[4] for x in t_list)),
+            "risk_score": cp_score,
+            "classification": classification,
+            "is_flagged": cp_score >= 30,
+            "row_id": rep[0],
+            "amount": round(rep[3], 2),
+            "timestamp": str(rep[4]),
+            "payment_mode": rep[5],
+            "time_gap_seconds": None
+        })
+
+    for cp_id, t_list in out_grouped.items():
+        rep = max(t_list, key=lambda x: x[3])
+        cp_score_data = score_lookup.get(cp_id, {})
+        cp_score = cp_score_data.get("risk_score", 0)
+        tot_amt = sum(x[3] for x in t_list)
+        if cp_score == 100:
+            classification = "Layer 1 Transit Core"
+        elif cp_score_data.get("ind_sink") or cp_score == 40:
+            classification = "Terminal Cash-Out Sink"
+        elif cp_score >= 30:
+            classification = "Layer 2 Dispersal & Routing"
+        else:
+            classification = "Clean Normal Baseline"
+
+        all_neighbors.append({
+            "account_id": cp_id,
+            "bank_prefix": cp_id[:4],
+            "direction": "outgoing",
+            "txn_count": len(t_list),
+            "total_amount": round(tot_amt, 2),
+            "first_seen": str(min(x[4] for x in t_list)),
+            "last_seen": str(max(x[4] for x in t_list)),
+            "risk_score": cp_score,
+            "classification": classification,
+            "is_flagged": cp_score >= 30,
+            "row_id": rep[0],
+            "amount": round(rep[3], 2),
+            "timestamp": str(rep[4]),
+            "payment_mode": rep[5],
+            "time_gap_seconds": out_time_gaps.get(rep[0])
+        })
+
+    all_neighbors.sort(key=lambda x: -x["total_amount"])
+    displayed_neighbors = all_neighbors[:display_limit]
+
+    return {
+        "account_id": account_id,
+        "summary": {
+            "distinct_connected_accounts": distinct_connected,
+            "incoming_connected_accounts": total_incoming_accounts,
+            "outgoing_connected_accounts": total_outgoing_accounts,
+            "total_observed_transactions": total_observed_transactions,
+            "connected_flagged_count": len(flagged_accounts),
+            "connected_clean_count": len(clean_accounts),
+            "flagged_tier_breakdown": tier_counts,
+            "flagged_incoming_inr": round(flagged_in_inr, 2),
+            "flagged_outgoing_inr": round(flagged_out_inr, 2),
+            "clean_incoming_inr": round(clean_in_inr, 2),
+            "clean_outgoing_inr": round(clean_out_inr, 2),
+            "total_incoming_inr": total_incoming_inr,
+            "total_outgoing_inr": total_outgoing_inr
+        },
+        "display_limit": display_limit,
+        "total_neighbors": len(all_neighbors),
+        "displayed_count": len(displayed_neighbors),
+        "neighbors": displayed_neighbors
+    }

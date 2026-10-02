@@ -1326,6 +1326,21 @@
             </div>
           </div>
 
+          <!-- Connected Accounts Summary Card -->
+          <div class="panel" id="connected-summary-panel" style="margin-bottom: 16px;">
+            <div class="panel-header" style="background: rgba(15, 23, 42, 0.6); display: flex; justify-content: space-between; align-items: center;">
+              <div class="panel-title" style="display: flex; align-items: center; gap: 8px;">
+                <span>🔗 Connected Accounts Summary</span>
+              </div>
+              <span id="conn-summary-badge" class="badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-size: 10px; border: 1px solid rgba(56, 189, 248, 0.3);">Observed Relationships</span>
+            </div>
+            <div class="panel-body" id="connected-summary-body" style="padding: 14px;">
+              <div style="color: var(--text-dim); text-align: center; padding: 12px; font-size: 11px;">
+                Select an account to view connected account summary.
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <!-- COLUMN 2: Transaction Graph & Visual Flow Trace -->
@@ -2933,6 +2948,9 @@
 
       // 9. Load Statistical ML Anomaly Signal (Unsupervised Isolation Forest)
       loadMlAnomaly(detectData.account_id);
+
+      // 10. Load Connected Accounts Summary (SQL-Based Counterparty Profile)
+      loadConnectedSummary(detectData.account_id);
     }
 
     // ML Anomaly Signal Loader & Renderer
@@ -3005,6 +3023,165 @@
         levelEl.style.borderColor = 'rgba(100, 116, 139, 0.4)';
       }
       if (pctEl) pctEl.innerText = '--';
+    }
+
+    // Connected Accounts Summary Loader & Renderer
+    async function loadConnectedSummary(accId) {
+      renderConnectedSummaryLoading();
+      try {
+        const resp = await fetch(`${API_BASE}/api/connected-summary/${encodeURIComponent(accId)}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        renderConnectedSummary(data);
+      } catch (e) {
+        renderConnectedSummaryFallback(e.message);
+      }
+    }
+
+    function renderConnectedSummaryLoading() {
+      const container = document.getElementById('connected-summary-body');
+      if (!container) return;
+      container.innerHTML = `
+        <div style="display:flex; align-items:center; justify-content:center; gap:8px; padding:20px; color:var(--text-dim); font-size:11px;">
+          <span>⏳ Computing observed counterparty SQL summary...</span>
+        </div>
+      `;
+    }
+
+    function renderConnectedSummaryFallback(errMsg = '') {
+      const container = document.getElementById('connected-summary-body');
+      if (!container) return;
+      container.innerHTML = `
+        <div style="color:var(--text-dim); text-align:center; padding:16px; font-size:11px;">
+          Connected account summary currently unavailable. ${escapeHtml(errMsg)}
+        </div>
+      `;
+    }
+
+    function renderConnectedSummary(res) {
+      const container = document.getElementById('connected-summary-body');
+      if (!container || !res || !res.summary) return;
+
+      const s = res.summary;
+      const tiers = s.flagged_tier_breakdown || {};
+      const neighbors = res.neighbors || [];
+
+      let neighborRows = '';
+      neighbors.forEach((n) => {
+        const isOut = n.direction === 'outgoing';
+        const dirBadge = isOut
+          ? '<span style="color:#c084fc; font-weight:700; font-size:10px;">📤 Outflow</span>'
+          : '<span style="color:#38bdf8; font-weight:700; font-size:10px;">📥 Inflow</span>';
+
+        const roleBadge = n.is_flagged
+          ? `<span class="badge" style="background:rgba(239,68,68,0.15); color:#fca5a5; font-size:9.5px; border:1px solid rgba(239,68,68,0.3);">${escapeHtml(n.classification || 'Flagged')}</span>`
+          : `<span class="badge" style="background:rgba(34,197,94,0.15); color:#86efac; font-size:9.5px; border:1px solid rgba(34,197,94,0.3);">${escapeHtml(n.classification || 'Clean Baseline')}</span>`;
+
+        const gapText = (n.time_gap_seconds !== null && n.time_gap_seconds !== undefined)
+          ? `<span style="color:#a5f3fc; font-size:10px; font-family:var(--font-mono); font-weight:600;">${n.time_gap_seconds}s</span>`
+          : '<span style="color:var(--text-dim); font-size:10px;">--</span>';
+
+        neighborRows += `
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.05); cursor:pointer;" onclick="auditSingleTxn(${n.row_id})">
+            <td class="td-mono" style="font-size:11px; font-weight:600;">
+              <a href="javascript:void(0)" onclick="event.stopPropagation(); searchAccount('${escapeHtml(n.account_id)}')" style="color:var(--accent-cyan); text-decoration:none;" title="Investigate account">${escapeHtml(n.account_id)}</a>
+            </td>
+            <td>${dirBadge}</td>
+            <td class="td-amt" style="font-size:11px;">₹${Number(n.amount).toLocaleString('en-IN', {minimumFractionDigits:2})}</td>
+            <td class="td-mono" style="font-size:10px; color:#cbd5e1;">Row ${n.row_id}</td>
+            <td><span class="tech-tag" style="font-size:9.5px;">${escapeHtml(n.payment_mode || 'N/A')}</span></td>
+            <td style="text-align:center;">${gapText}</td>
+            <td>${roleBadge}</td>
+          </tr>
+        `;
+      });
+
+      container.innerHTML = `
+        <!-- Top Metrics Grid -->
+        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; margin-bottom:12px;">
+          <div style="background:rgba(15,23,42,0.6); padding:8px 10px; border-radius:6px; border:1px solid var(--card-border);">
+            <div style="font-size:10px; color:var(--text-dim); text-transform:uppercase;">Distinct Connected</div>
+            <div style="font-size:18px; font-weight:800; font-family:var(--font-mono); color:var(--accent-cyan);">${s.distinct_connected_accounts}</div>
+          </div>
+          <div style="background:rgba(15,23,42,0.6); padding:8px 10px; border-radius:6px; border:1px solid var(--card-border);">
+            <div style="font-size:10px; color:var(--text-dim); text-transform:uppercase;">Inflow Accounts</div>
+            <div style="font-size:18px; font-weight:800; font-family:var(--font-mono); color:#38bdf8;">${s.incoming_connected_accounts}</div>
+            <div style="font-size:9.5px; color:var(--text-muted);">₹${Number(s.total_incoming_inr).toLocaleString('en-IN')}</div>
+          </div>
+          <div style="background:rgba(15,23,42,0.6); padding:8px 10px; border-radius:6px; border:1px solid var(--card-border);">
+            <div style="font-size:10px; color:var(--text-dim); text-transform:uppercase;">Outflow Accounts</div>
+            <div style="font-size:18px; font-weight:800; font-family:var(--font-mono); color:#c084fc;">${s.outgoing_connected_accounts}</div>
+            <div style="font-size:9.5px; color:var(--text-muted);">₹${Number(s.total_outgoing_inr).toLocaleString('en-IN')}</div>
+          </div>
+          <div style="background:rgba(15,23,42,0.6); padding:8px 10px; border-radius:6px; border:1px solid var(--card-border);">
+            <div style="font-size:10px; color:var(--text-dim); text-transform:uppercase;">Observed Txns</div>
+            <div style="font-size:18px; font-weight:800; font-family:var(--font-mono); color:#e2e8f0;">${s.total_observed_transactions}</div>
+          </div>
+        </div>
+
+        <!-- Connected Classification Breakdown -->
+        <div style="background:rgba(15,23,42,0.4); border:1px solid var(--card-border); border-radius:6px; padding:10px; margin-bottom:12px; font-size:11px;">
+          <div style="font-weight:700; color:#cbd5e1; margin-bottom:6px; display:flex; justify-content:space-between;">
+            <span>Observed Risk Classification Breakdown</span>
+            <span style="color:var(--text-dim); font-size:10px;">Deterministic Logic Baseline</span>
+          </div>
+          <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:180px; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.25); border-radius:4px; padding:8px;">
+              <div style="color:#fca5a5; font-weight:700; margin-bottom:4px; display:flex; justify-content:space-between;">
+                <span>Flagged Accounts (Score ≥ 30):</span>
+                <span style="font-family:var(--font-mono);">${s.connected_flagged_count}</span>
+              </div>
+              <div style="color:var(--text-dim); font-size:10px; line-height:1.4;">
+                • Layer 1: <strong style="color:#fca5a5;">${tiers['Layer 1'] || 0}</strong><br>
+                • Layer 2: <strong style="color:#fcd34d;">${tiers['Layer 2'] || 0}</strong><br>
+                • Sinks: <strong style="color:#cbd5e1;">${tiers['Sinks'] || 0}</strong>
+              </div>
+              <div style="color:var(--text-muted); font-size:9.5px; margin-top:4px; border-top:1px solid rgba(255,255,255,0.06); padding-top:4px;">
+                In: ₹${Number(s.flagged_incoming_inr).toLocaleString('en-IN')} | Out: ₹${Number(s.flagged_outgoing_inr).toLocaleString('en-IN')}
+              </div>
+            </div>
+            <div style="flex:1; min-width:180px; background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.25); border-radius:4px; padding:8px;">
+              <div style="color:#86efac; font-weight:700; margin-bottom:4px; display:flex; justify-content:space-between;">
+                <span>Clean Baseline (Score &lt; 30):</span>
+                <span style="font-family:var(--font-mono);">${s.connected_clean_count}</span>
+              </div>
+              <div style="color:var(--text-dim); font-size:10px; line-height:1.4;">
+                • Conforming to normal baseline activity<br>
+                • Zero measured indicators matched
+              </div>
+              <div style="color:var(--text-muted); font-size:9.5px; margin-top:4px; border-top:1px solid rgba(255,255,255,0.06); padding-top:4px;">
+                In: ₹${Number(s.clean_incoming_inr).toLocaleString('en-IN')} | Out: ₹${Number(s.clean_outgoing_inr).toLocaleString('en-IN')}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Neighbors Table -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <span style="font-size:11px; font-weight:700; color:#94a3b8;">
+            Showing ${res.displayed_count} of ${s.distinct_connected_accounts} connected accounts
+          </span>
+          <span style="font-size:10px; color:var(--text-dim);">Ordered by total transaction amount</span>
+        </div>
+        <div class="table-container" style="max-height:220px; overflow-y:auto; margin-bottom:0;">
+          <table>
+            <thead>
+              <tr>
+                <th>Connected Account</th>
+                <th>Direction</th>
+                <th>Amount</th>
+                <th>Row ID</th>
+                <th>Payment Mode</th>
+                <th>Time Gap</th>
+                <th>Classification</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${neighborRows || '<tr><td colspan="7" style="text-align:center; color:var(--text-dim);">No connected accounts found.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      `;
     }
 
     // Toggle Accordion Panels
@@ -3187,9 +3364,13 @@
               fullLabel: `📥 INFLOW\n${acc}`,
               account_id: acc,
               total_amount: item.total_amount,
-              transaction_count: item.transaction_count,
-              row_id: item.sample_row_id,
-              timestamp: item.sample_timestamp
+              transaction_count: item.txn_count || item.transaction_count,
+              row_id: item.sample_row_id || item.row_id,
+              amount: item.sample_amount || item.total_amount,
+              timestamp: item.sample_timestamp || item.timestamp,
+              payment_mode: item.sample_payment_mode || item.payment_mode || 'N/A',
+              direction: 'incoming',
+              time_gap_seconds: item.time_gap_seconds
             }
           });
         }
@@ -3198,11 +3379,14 @@
             id: `e-in-${acc}-${targetAcc}-${idx}`,
             source: acc,
             target: targetAcc,
-            amount: `₹${Number(item.total_amount).toLocaleString('en-IN')}`,
+            amount: item.sample_amount ? `₹${Number(item.sample_amount).toLocaleString('en-IN')}` : `₹${Number(item.total_amount).toLocaleString('en-IN')}`,
             label: `₹${Number(item.total_amount).toLocaleString('en-IN')}${item.sample_row_id ? ` [Row ${item.sample_row_id}]` : ''}`,
-            row_id: item.sample_row_id,
-            timestamp: item.sample_timestamp,
-            txnCount: item.transaction_count
+            row_id: item.sample_row_id || item.row_id,
+            timestamp: item.sample_timestamp || item.timestamp,
+            payment_mode: item.sample_payment_mode || item.payment_mode || 'N/A',
+            direction: 'incoming',
+            time_gap_seconds: item.time_gap_seconds,
+            txnCount: item.txn_count || item.transaction_count
           }
         });
       });
@@ -3222,9 +3406,13 @@
               fullLabel: `📤 OUTFLOW\n${acc}`,
               account_id: acc,
               total_amount: item.total_amount,
-              transaction_count: item.transaction_count,
-              row_id: item.sample_row_id,
-              timestamp: item.sample_timestamp
+              transaction_count: item.txn_count || item.transaction_count,
+              row_id: item.sample_row_id || item.row_id,
+              amount: item.sample_amount || item.total_amount,
+              timestamp: item.sample_timestamp || item.timestamp,
+              payment_mode: item.sample_payment_mode || item.payment_mode || 'N/A',
+              direction: 'outgoing',
+              time_gap_seconds: item.time_gap_seconds
             }
           });
         }
@@ -3233,11 +3421,14 @@
             id: `e-out-${targetAcc}-${acc}-${idx}`,
             source: targetAcc,
             target: acc,
-            amount: `₹${Number(item.total_amount).toLocaleString('en-IN')}`,
+            amount: item.sample_amount ? `₹${Number(item.sample_amount).toLocaleString('en-IN')}` : `₹${Number(item.total_amount).toLocaleString('en-IN')}`,
             label: `₹${Number(item.total_amount).toLocaleString('en-IN')}${item.sample_row_id ? ` [Row ${item.sample_row_id}]` : ''}`,
-            row_id: item.sample_row_id,
-            timestamp: item.sample_timestamp,
-            txnCount: item.transaction_count
+            row_id: item.sample_row_id || item.row_id,
+            timestamp: item.sample_timestamp || item.timestamp,
+            payment_mode: item.sample_payment_mode || item.payment_mode || 'N/A',
+            direction: 'outgoing',
+            time_gap_seconds: item.time_gap_seconds,
+            txnCount: item.txn_count || item.transaction_count
           }
         });
       });
@@ -3706,7 +3897,7 @@
       if (type === 'node') {
         const accId = data.id || data.label;
         const isTarget = data.isPivot || (currentAccountData && accId === currentAccountData.account_id);
-        const roleText = isTarget ? '🎯 Target Account' : (data.role === 'source' ? '📥 Inflow Counterparty' : '📤 Outflow Counterparty');
+        const roleText = isTarget ? '🎯 Target Account' : (data.role === 'source' ? '📥 Inflow Connected Account' : '📤 Outflow Connected Account');
         const bank = accId.substring(0, 4);
 
         content.innerHTML = `
@@ -3714,27 +3905,36 @@
             <span style="font-weight:700; color:#fff; font-size:12px;">${roleText}</span>
             <button onclick="closeGraphPopover()" style="background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:14px;">✕</button>
           </div>
-          <div style="font-family:var(--font-mono); font-size:12px; color:var(--accent-cyan); font-weight:700; margin-bottom:4px;">${accId}</div>
-          <div style="color:var(--text-muted); font-size:11px; margin-bottom:8px;">Bank Code: <strong>${bank}</strong></div>
-          ${data.total_amount ? `<div style="font-size:11px; margin-bottom:4px;">Total Flow: <strong>₹${Number(data.total_amount).toLocaleString('en-IN')}</strong> (${data.transaction_count || 1} txns)</div>` : ''}
-          <div style="display:flex; gap:6px; margin-top:8px;">
-            ${!isTarget ? `<button class="btn" style="background:#0284c7; padding:4px 10px; font-size:11px;" onclick="searchAccount('${accId}'); closeGraphPopover();">🔍 Investigate Account</button>` : '<span style="font-size:10px; color:var(--text-dim);">Active Target Under Investigation</span>'}
+          <div style="font-family:var(--font-mono); font-size:12px; color:var(--accent-cyan); font-weight:700; margin-bottom:4px;">${escapeHtml(accId)}</div>
+          <div style="color:var(--text-muted); font-size:11px; margin-bottom:6px;">Bank Code: <strong>${escapeHtml(bank)}</strong></div>
+          ${data.direction ? `<div style="font-size:11px; margin-bottom:4px;">Direction: <strong style="color:${data.direction === 'incoming' ? '#38bdf8' : '#c084fc'};">${data.direction === 'incoming' ? '📥 Inflow' : '📤 Outflow'}</strong></div>` : ''}
+          ${data.row_id ? `<div style="font-family:var(--font-mono); font-size:11px; color:#cbd5e1; margin-bottom:4px;">Row ID: <strong>${data.row_id}</strong></div>` : ''}
+          ${data.amount ? `<div style="font-size:11px; margin-bottom:4px;">Amount: <strong style="color:#38bdf8;">${typeof data.amount === 'number' ? '₹' + Number(data.amount).toLocaleString('en-IN') : data.amount}</strong></div>` : ''}
+          ${data.timestamp ? `<div style="font-family:var(--font-mono); font-size:10px; color:var(--text-dim); margin-bottom:4px;">Timestamp: ${escapeHtml(data.timestamp)}</div>` : ''}
+          ${data.payment_mode ? `<div style="font-size:11px; margin-bottom:4px;">Payment Mode: <strong style="color:#fcd34d;">${escapeHtml(data.payment_mode)}</strong></div>` : ''}
+          ${(data.time_gap_seconds !== null && data.time_gap_seconds !== undefined) ? `<div style="font-size:11px; margin-bottom:4px; color:#a5f3fc; background:rgba(6,182,212,0.1); padding:3px 6px; border-radius:4px; border:1px solid rgba(6,182,212,0.2);">Time Gap: <strong>${data.time_gap_seconds} seconds</strong></div>` : ''}
+          <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
+            ${!isTarget ? `<button class="btn" style="background:#0284c7; padding:4px 10px; font-size:11px;" onclick="searchAccount('${escapeHtml(accId)}'); closeGraphPopover();">🔍 View Account</button>` : '<span style="font-size:10px; color:var(--text-dim);">Active Target Under Investigation</span>'}
+            ${data.row_id ? `<button class="btn btn-secondary" style="padding:4px 8px; font-size:10px;" onclick="auditSingleTxn(${data.row_id})">📋 Audit Row</button>` : ''}
           </div>
         `;
       } else if (type === 'edge') {
         content.innerHTML = `
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid var(--card-border); padding-bottom:6px;">
-            <span style="font-weight:700; color:#fff; font-size:12px;">➡️ Directed Transaction Flow</span>
+            <span style="font-weight:700; color:#fff; font-size:12px;">➡️ Observed Transaction Relationship</span>
             <button onclick="closeGraphPopover()" style="background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:14px;">✕</button>
           </div>
           <div style="font-family:var(--font-mono); font-size:11px; color:#cbd5e1; margin-bottom:4px;">
-            <strong>${data.source}</strong> ➔ <strong>${data.target}</strong>
+            <strong>${escapeHtml(data.source)}</strong> ➔ <strong>${escapeHtml(data.target)}</strong>
           </div>
+          ${data.direction ? `<div style="font-size:11px; margin-bottom:4px;">Direction: <strong style="color:${data.direction === 'incoming' ? '#38bdf8' : '#c084fc'};">${data.direction === 'incoming' ? '📥 Inflow' : '📤 Outflow'}</strong></div>` : ''}
+          ${data.row_id ? `<div style="font-family:var(--font-mono); font-size:11px; color:#cbd5e1; margin-bottom:4px;">Row ID: <strong>${data.row_id}</strong></div>` : ''}
           <div style="font-size:12px; color:#38bdf8; font-weight:700; margin-bottom:4px;">
-            Amount: ${data.amount || data.label || 'N/A'}
+            Amount: ${typeof data.amount === 'number' ? '₹' + Number(data.amount).toLocaleString('en-IN') : (data.amount || data.label || 'N/A')}
           </div>
-          ${data.row_id ? `<div style="font-family:var(--font-mono); font-size:10px; color:var(--text-dim); margin-bottom:4px;">Row ID: <strong>${data.row_id}</strong></div>` : ''}
-          ${data.timestamp ? `<div style="font-family:var(--font-mono); font-size:10px; color:var(--text-dim); margin-bottom:8px;">Timestamp: ${data.timestamp}</div>` : ''}
+          ${data.timestamp ? `<div style="font-family:var(--font-mono); font-size:10px; color:var(--text-dim); margin-bottom:4px;">Timestamp: ${escapeHtml(data.timestamp)}</div>` : ''}
+          ${data.payment_mode ? `<div style="font-size:11px; margin-bottom:4px;">Payment Mode: <strong style="color:#fcd34d;">${escapeHtml(data.payment_mode)}</strong></div>` : ''}
+          ${(data.time_gap_seconds !== null && data.time_gap_seconds !== undefined) ? `<div style="font-size:11px; margin-bottom:6px; color:#a5f3fc; background:rgba(6,182,212,0.1); padding:3px 6px; border-radius:4px; border:1px solid rgba(6,182,212,0.2);">Time Gap: <strong>${data.time_gap_seconds} seconds</strong></div>` : ''}
           <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
             ${data.row_id ? `<button class="btn btn-secondary" style="padding:4px 8px; font-size:10px; border-color:#38bdf8; color:#38bdf8;" onclick="loadTraceForTxn(${data.row_id}); closeGraphPopover();">🔄 Trace Flow</button>` : ''}
             ${data.row_id ? `<button class="btn btn-secondary" style="padding:4px 8px; font-size:10px;" onclick="auditSingleTxn(${data.row_id})">📋 Audit Row</button>` : ''}

@@ -105,7 +105,7 @@ from .explain_template import generate_explanation
 from .explain_llm import generate_llm_explanation
 from .guardrails import validate
 from .trace import trace_onward_flow
-from .data_access import get_connected_accounts, get_transaction_by_row_id
+from .data_access import get_connected_accounts, get_transaction_by_row_id, get_connected_summary
 from .ml_anomaly import get_account_ml_anomaly
 
 _detection_engine: Optional[DetectionEngine] = None
@@ -179,6 +179,27 @@ def get_account_connected(
             detail=f"Account '{account_id}' not found in transaction records."
         )
     return get_connected_accounts(account_id, limit=limit)
+
+@app.get("/api/connected-summary/{account_id}")
+def get_account_connected_summary(
+    account_id: str,
+    limit: Optional[int] = Query(None, ge=1, le=50, description="Override display limit from config")
+) -> Dict[str, Any]:
+    """
+    Connected Accounts Summary: complete SQL-based counterparty analysis
+    with risk-tier breakdown using the existing deterministic detection engine.
+    Summary counts always represent the COMPLETE SQL result.
+    Display-limited neighbor list is ordered by total transaction amount.
+    """
+    if not account_exists(account_id):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Account '{account_id}' not found in transaction records."
+        )
+    from .db import load_config
+    cfg = load_config()
+    display_limit = limit if limit is not None else cfg.get("connected_summary", {}).get("display_limit", 10)
+    return get_connected_summary(account_id, display_limit=display_limit)
 
 @app.get("/api/transaction/{row_id}")
 def get_single_transaction(row_id: int) -> Dict[str, Any]:

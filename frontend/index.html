@@ -1749,6 +1749,17 @@
     let graphNeighborLimit = 5;
     let currentEvidenceRecords = [];
 
+    // HTML Sanitization Helper to prevent XSS
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
     // Initialization
     window.addEventListener('DOMContentLoaded', () => {
       checkBackendHealth();
@@ -1919,15 +1930,15 @@
           ).join(' ');
 
           tr.innerHTML = `
-            <td class="td-mono"><strong>${acc.account_id}</strong></td>
+            <td class="td-mono"><strong>${escapeHtml(acc.account_id)}</strong></td>
             <td class="td-mono"><span style="color: ${scoreColor}; font-weight: 700;">${acc.risk_score} / 100</span></td>
             <td>${indicatorsHtml || '<span style="color: var(--text-dim); font-size: 11px;">no indicators matched</span>'}</td>
-            <td><button class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;" onclick="searchAccount('${acc.account_id}')">Investigate →</button></td>
+            <td><button class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;" onclick="searchAccount('${encodeURIComponent(acc.account_id)}')">Investigate →</button></td>
           `;
           tbody.appendChild(tr);
         });
       } catch (err) {
-        document.getElementById('flagged-tbody').innerHTML = `<tr><td colspan="4" style="text-align: center; color: #f87171; padding: 20px;">Unable to load flagged accounts: ${err.message}</td></tr>`;
+        document.getElementById('flagged-tbody').innerHTML = `<tr><td colspan="4" style="text-align: center; color: #f87171; padding: 20px;">Unable to load flagged accounts: ${escapeHtml(err.message)}</td></tr>`;
       }
     }
 
@@ -2098,28 +2109,28 @@
         if (showMuleColsInline) {
           return `
             <tr>
-              <td class="td-mono" style="text-align: center; color: var(--text-dim); font-size: 11px;">#${acc.rank}</td>
+              <td class="td-mono" style="text-align: center; color: var(--text-dim); font-size: 11px;">#${Number(acc.rank)}</td>
               <td class="td-mono">
-                <a href="javascript:void(0)" onclick="searchAccount('${acc.account_id}')" style="color: var(--accent-cyan); font-weight: 700; text-decoration: none; font-size: 12px;">${acc.account_id}</a>
-                <div style="font-size: 10px; color: var(--text-dim);">${acc.bank_name || acc.bank_prefix}</div>
+                <a href="javascript:void(0)" onclick="searchAccount('${encodeURIComponent(acc.account_id)}')" style="color: var(--accent-cyan); font-weight: 700; text-decoration: none; font-size: 12px;">${escapeHtml(acc.account_id)}</a>
+                <div style="font-size: 10px; color: var(--text-dim);">${escapeHtml(acc.bank_name || acc.bank_prefix)}</div>
               </td>
-              <td><span class="badge" style="background: rgba(56,189,248,0.15); color: #7dd3fc; font-size: 10px; white-space: nowrap;">${acc.mule_role || 'Node'}</span></td>
+              <td><span class="badge" style="background: rgba(56,189,248,0.15); color: #7dd3fc; font-size: 10px; white-space: nowrap;">${escapeHtml(acc.mule_role || 'Node')}</span></td>
               <td class="td-mono"><strong style="color: ${scoreColor}; font-size: 11px;">${acc.risk_score} / 100</strong></td>
               <td style="font-size: 11px; color: var(--text-muted); max-width: 270px; line-height: 1.35;">
                 <div style="display: flex; gap: 3px; flex-wrap: wrap; margin-bottom: 4px;">
                   ${paramBadges}
                 </div>
-                <div style="font-size: 10px; color: var(--text-dim);">${acc.evidence_desc || ''}</div>
+                <div style="font-size: 10px; color: var(--text-dim);">${escapeHtml(acc.evidence_desc || '')}</div>
               </td>
               <td class="td-mono" style="font-size: 11px;">
                 <div style="color: #38bdf8;">In: ${inFormatted}</div>
                 <div style="color: #f87171;">Out: ${outFormatted}</div>
               </td>
-              <td class="td-mono" style="font-size: 11px; color: var(--text-muted);">${acc.in_degree} / ${acc.out_degree}</td>
+              <td class="td-mono" style="font-size: 11px; color: var(--text-muted);">${Number(acc.in_degree)} / ${Number(acc.out_degree)}</td>
               <td style="text-align: center;">
                 <div style="display: flex; gap: 4px; justify-content: center;">
-                  <button class="btn btn-secondary" onclick="openMuleDetailsModal('${acc.account_id}')" style="padding: 2px 7px; font-size: 11px; border-color: #38bdf8; color: #38bdf8; font-weight: 600;">📋 Details</button>
-                  <button class="btn btn-secondary" onclick="searchAccount('${acc.account_id}')" style="padding: 2px 7px; font-size: 11px;">Inspect →</button>
+                  <button class="btn btn-secondary" onclick="openMuleDetailsModal('${encodeURIComponent(acc.account_id)}')" style="padding: 2px 7px; font-size: 11px; border-color: #38bdf8; color: #38bdf8; font-weight: 600;">📋 Details</button>
+                  <button class="btn btn-secondary" onclick="searchAccount('${encodeURIComponent(acc.account_id)}')" style="padding: 2px 7px; font-size: 11px;">Inspect →</button>
                 </div>
               </td>
             </tr>
@@ -2128,25 +2139,25 @@
 
         return `
           <tr>
-            <td class="td-mono" style="text-align: center; color: var(--text-dim); font-size: 11px;">#${acc.rank}</td>
+            <td class="td-mono" style="text-align: center; color: var(--text-dim); font-size: 11px;">#${Number(acc.rank)}</td>
             <td class="td-mono">
-              <a href="javascript:void(0)" onclick="searchAccount('${acc.account_id}')" style="color: var(--accent-cyan); font-weight: 700; text-decoration: none; font-size: 12px;">
-                ${acc.account_id}
+              <a href="javascript:void(0)" onclick="searchAccount('${encodeURIComponent(acc.account_id)}')" style="color: var(--accent-cyan); font-weight: 700; text-decoration: none; font-size: 12px;">
+                ${escapeHtml(acc.account_id)}
               </a>
               <div style="font-size: 10px; color: var(--text-dim); margin-top: 2px;">
-                ${acc.bank_name || acc.bank_prefix || acc.account_id.substring(0, 4)}
+                ${escapeHtml(acc.bank_name || acc.bank_prefix || acc.account_id.substring(0, 4))}
               </div>
             </td>
             <td class="td-mono"><span style="color: ${scoreColor}; font-weight: 700; font-size: 11px;">${acc.risk_score} / 100</span></td>
             <td class="td-mono" style="color: #38bdf8; font-weight: 600;">${inFormatted}</td>
             <td class="td-mono" style="color: #f87171;">${outFormatted}</td>
-            <td class="td-mono" style="font-size: 11px; color: var(--text-muted);">${acc.in_degree} in / ${acc.out_degree} out</td>
+            <td class="td-mono" style="font-size: 11px; color: var(--text-muted);">${Number(acc.in_degree)} in / ${Number(acc.out_degree)} out</td>
             <td style="text-align: center;">
               <div style="display: flex; gap: 6px; justify-content: center; align-items: center;">
-                <button class="btn btn-secondary" onclick="openMuleDetailsModal('${acc.account_id}')" style="padding: 3px 9px; font-size: 11px; border-color: #38bdf8; color: #38bdf8; font-weight: 600; white-space: nowrap;">
+                <button class="btn btn-secondary" onclick="openMuleDetailsModal('${encodeURIComponent(acc.account_id)}')" style="padding: 3px 9px; font-size: 11px; border-color: #38bdf8; color: #38bdf8; font-weight: 600; white-space: nowrap;">
                   📋 Mule Details Nikalein
                 </button>
-                <button class="btn btn-secondary" onclick="searchAccount('${acc.account_id}')" style="padding: 3px 8px; font-size: 11px; white-space: nowrap;">
+                <button class="btn btn-secondary" onclick="searchAccount('${encodeURIComponent(acc.account_id)}')" style="padding: 3px 8px; font-size: 11px; white-space: nowrap;">
                   Inspect →
                 </button>
               </div>
@@ -2768,13 +2779,13 @@
       // 4. Device and IP Summary
       const devSummary = ctx.device_ip_summary || {};
       const outDevEl = document.getElementById('infra-out-dev');
-      outDevEl.innerHTML = (devSummary.outgoing_devices || []).map(d => `<span class="tech-tag">${d}</span>`).join('') || '<span style="color:var(--text-dim);">None</span>';
+      outDevEl.innerHTML = (devSummary.outgoing_devices || []).map(d => `<span class="tech-tag">${escapeHtml(d)}</span>`).join('') || '<span style="color:var(--text-dim);">None</span>';
       
       const inDevEl = document.getElementById('infra-in-dev');
-      inDevEl.innerHTML = (devSummary.incoming_devices || []).map(d => `<span class="tech-tag">${d}</span>`).join('') || '<span style="color:var(--text-dim);">None</span>';
+      inDevEl.innerHTML = (devSummary.incoming_devices || []).map(d => `<span class="tech-tag">${escapeHtml(d)}</span>`).join('') || '<span style="color:var(--text-dim);">None</span>';
       
       document.getElementById('infra-ip-cnt').innerText = devSummary.distinct_ips || 0;
-      document.getElementById('infra-sample-ips').innerText = (devSummary.sample_ips || []).slice(0, 3).join(', ') || 'N/A';
+      document.getElementById('infra-sample-ips').innerText = (devSummary.sample_ips || []).slice(0, 3).map(escapeHtml).join(', ') || 'N/A';
 
       // 5. Explanation Narrative & Guardrails
       document.getElementById('explanation-body').innerText = explainData.explanation || 'No explanation available.';
@@ -3860,16 +3871,16 @@
         <tr>
           <td>
             <span class="tech-tag" style="background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.35); color: #fca5a5; font-size: 10px; padding: 2px 6px;">
-              ${r.indicator}
+              ${escapeHtml(r.indicator)}
             </span>
           </td>
-          <td class="td-mono">${r.row_id}</td>
-          <td class="td-mono" style="font-size: 11px;">${r.transaction_id}</td>
-          <td class="td-mono">${r.sender}</td>
-          <td class="td-mono">${r.receiver}</td>
+          <td class="td-mono">${Number(r.row_id)}</td>
+          <td class="td-mono" style="font-size: 11px;">${escapeHtml(r.transaction_id)}</td>
+          <td class="td-mono">${escapeHtml(r.sender)}</td>
+          <td class="td-mono">${escapeHtml(r.receiver)}</td>
           <td class="td-amt">₹${Number(r.amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
-          <td class="td-mono" style="font-size: 11px;">${r.timestamp}</td>
-          <td style="font-size: 11px; color: var(--text-muted); max-width: 200px;">${r.reason}</td>
+          <td class="td-mono" style="font-size: 11px;">${escapeHtml(r.timestamp)}</td>
+          <td style="font-size: 11px; color: var(--text-muted); max-width: 200px;">${escapeHtml(r.reason)}</td>
           <td style="text-align: center;">
             <div style="display: flex; gap: 4px; justify-content: center;">
               <button class="btn btn-secondary" style="padding: 2px 7px; font-size: 10px; border-color: var(--accent-cyan); color: var(--accent-cyan);" onclick="loadTraceForTxn(${r.row_id}); closeEvidenceModal();">Trace</button>
@@ -3901,18 +3912,18 @@
 
         content.innerHTML = `
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 11px; font-family: var(--font-mono);">
-            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Row ID: <strong>${txn.row_id ?? rowId}</strong></div>
-            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Transaction ID: <strong>${txn.Transaction_ID || 'N/A'}</strong></div>
-            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Sender Account: <strong>${txn.Sender_Account || 'N/A'}</strong></div>
-            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Receiver Account: <strong>${txn.Receiver_Account || 'N/A'}</strong></div>
-            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Sender IFSC: <strong>${txn.Sender_IFSC || 'N/A'}</strong></div>
-            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Receiver IFSC: <strong>${txn.Receiver_IFSC || 'N/A'}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Row ID: <strong>${Number(txn.row_id ?? rowId)}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Transaction ID: <strong>${escapeHtml(txn.Transaction_ID || 'N/A')}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Sender Account: <strong>${escapeHtml(txn.Sender_Account || 'N/A')}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Receiver Account: <strong>${escapeHtml(txn.Receiver_Account || 'N/A')}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Sender IFSC: <strong>${escapeHtml(txn.Sender_IFSC || 'N/A')}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Receiver IFSC: <strong>${escapeHtml(txn.Receiver_IFSC || 'N/A')}</strong></div>
             <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Amount: <strong style="color: #38bdf8;">₹${Number(txn.Amount || 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></div>
-            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Payment Mode: <strong>${txn.Payment_Mode || 'N/A'}</strong></div>
-            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px; grid-column: span 2;">Timestamp: <strong>${txn.Timestamp || 'N/A'}</strong></div>
-            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px; grid-column: span 2;">Narration: <strong>${txn.Narration || 'N/A'}</strong></div>
-            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">IP Address: <strong>${txn.IP_Address || 'N/A'}</strong></div>
-            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Device Type: <strong>${txn.Device_Type || 'N/A'}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Payment Mode: <strong>${escapeHtml(txn.Payment_Mode || 'N/A')}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px; grid-column: span 2;">Timestamp: <strong>${escapeHtml(txn.Timestamp || 'N/A')}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px; grid-column: span 2;">Narration: <strong>${escapeHtml(txn.Narration || 'N/A')}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">IP Address: <strong>${escapeHtml(txn.IP_Address || 'N/A')}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Device Type: <strong>${escapeHtml(txn.Device_Type || 'N/A')}</strong></div>
           </div>
           <div style="margin-top: 14px; display: flex; justify-content: flex-end; gap: 8px;">
             <button class="btn btn-secondary" onclick="loadTraceForTxn(${rowId}); closeTxnAuditModal();" style="border-color: #38bdf8; color: #38bdf8; font-size: 11px;">🔄 Trace Flow</button>

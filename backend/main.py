@@ -14,12 +14,14 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Enable CORS for local frontend development
+# Restrict CORS to local origins and prevent unauthorized cross-origin requests
+ALLOWED_ORIGIN_REGEX = r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origin_regex=ALLOWED_ORIGIN_REGEX,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -196,6 +198,11 @@ def trace_transaction(
     try:
         trace_result = trace_onward_flow(start_row_id=row_id, max_hops=max_hops, cap=cap)
         return trace_result
+    except ValueError as e:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Starting transaction row_id {row_id} not found in database: {str(e)}"
+        )
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -214,21 +221,28 @@ def list_flagged_accounts(
     Retrieves highest-risk accounts meeting score criteria (min_score, max_score, or exact_score)
     with pagination support.
     """
+    # Safely handle both FastAPI dependency injection and direct Python function calls
+    p = page.default if hasattr(page, "default") and not isinstance(page, int) else int(page)
+    l = limit.default if hasattr(limit, "default") and not isinstance(limit, int) else int(limit)
+    min_s = min_score.default if hasattr(min_score, "default") and not isinstance(min_score, int) else int(min_score)
+    max_s = max_score.default if hasattr(max_score, "default") and not isinstance(max_score, int) else max_score
+    exact_s = exact_score.default if hasattr(exact_score, "default") and not isinstance(exact_score, int) else exact_score
+
     engine = get_engine()
     all_scores = engine.score_all_accounts_fast()
 
-    if exact_score is not None:
-        filtered = [a for a in all_scores if a["risk_score"] == exact_score]
+    if exact_s is not None:
+        filtered = [a for a in all_scores if a["risk_score"] == exact_s]
     else:
         filtered = [
             a for a in all_scores
-            if a["risk_score"] >= min_score and (max_score is None or a["risk_score"] <= max_score)
+            if a["risk_score"] >= min_s and (max_s is None or a["risk_score"] <= max_s)
         ]
 
     filtered.sort(key=lambda x: (-x["risk_score"], x["account_id"]))
     total_matching = len(filtered)
-    start_idx = (page - 1) * limit
-    returned_accounts = filtered[start_idx : start_idx + limit]
+    start_idx = (p - 1) * l
+    returned_accounts = filtered[start_idx : start_idx + l]
 
     # Enrich returned accounts with matched indicator names
     indicator_map = [

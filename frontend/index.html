@@ -693,38 +693,143 @@
       to { transform: rotate(360deg); }
     }
 
+    /* Dossier Preview & Modal Styles */
+    .dossier-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 7, 18, 0.88);
+      backdrop-filter: blur(8px);
+      z-index: 1200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .dossier-modal-container {
+      background: #111827;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      width: 920px;
+      max-width: 96vw;
+      max-height: 94vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+    }
+
+    .dossier-modal-header {
+      padding: 14px 20px;
+      background: #162032;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .dossier-modal-body {
+      padding: 24px;
+      overflow-y: auto;
+      background: #090d16;
+      display: flex;
+      justify-content: center;
+    }
+
+    .dossier-sheet {
+      background: #ffffff;
+      color: #000000;
+      width: 100%;
+      max-width: 820px;
+      padding: 36px 40px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      border-radius: 4px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
     /* Print / PDF Styles */
     @media print {
-      body {
-        background: #fff !important;
-        color: #000 !important;
+      @page {
+        size: A4 portrait;
+        margin: 10mm 14mm 14mm 14mm;
       }
-      header, .header-actions, .search-bar, .graph-controls, .btn, .banner, .landing-hero {
+      html, body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      /* Strictly hide all dashboard chrome and modal controls */
+      header,
+      main,
+      #landing-view,
+      #investigation-view,
+      #error-view,
+      #loading-overlay,
+      .spinner-overlay,
+      .banner,
+      .btn,
+      .dossier-modal-backdrop,
+      .dossier-modal-header,
+      .header-actions,
+      .search-bar,
+      .graph-controls {
         display: none !important;
       }
-      .panel, .card, .score-card, .metric-item, .tech-box, .explanation-text, .accordion-item {
-        background: #fff !important;
-        color: #000 !important;
-        border: 1px solid #ccc !important;
-        box-shadow: none !important;
-        page-break-inside: avoid;
-      }
-      .score-num {
-        color: #000 !important;
-      }
-      th {
-        background: #f1f5f9 !important;
-        color: #000 !important;
-      }
-      td {
-        color: #000 !important;
-        border-bottom: 1px solid #eee !important;
-      }
-      .accordion-body {
+      /* Render dossier cleanly */
+      #dossier-modal {
         display: block !important;
+        position: static !important;
+        width: 100% !important;
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+        background: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+      }
+      .dossier-modal-container {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+      }
+      .dossier-modal-body {
+        display: block !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: transparent !important;
       }
       #printable-report {
         display: block !important;
+        visibility: visible !important;
+        position: static !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+      }
+      table {
+        page-break-inside: auto !important;
+      }
+      tr {
+        page-break-inside: avoid !important;
+      }
+      thead {
+        display: table-header-group !important;
       }
     }
   </style>
@@ -1055,75 +1160,131 @@
 
   </main>
 
-  <!-- PDF Print Template (Clean Printable Audit Dossier) -->
-  <div id="printable-report" style="display: none; padding: 24px; color: #000; background: #fff; font-family: sans-serif;">
-    <div style="border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: flex-end;">
-      <div>
-        <h1 style="font-size: 22px; margin: 0;">Operation Abhedya-Chakra — Forensic Investigation Dossier</h1>
-        <div style="font-size: 12px; color: #555; margin-top: 4px;">Indore Police Hackathon • Operation Abhedya-Chakra Auditable Banking Evidence System</div>
-      </div>
-      <div style="text-align: right; font-size: 11px; color: #555;">
-        <div>Dossier Date: <span id="pdf-date"></span></div>
-        <div>Target Account: <strong id="pdf-account-id" style="font-family: monospace;"></strong></div>
-      </div>
-    </div>
-
-    <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; margin-bottom: 16px;">
-      <h3 style="margin: 0 0 8px 0; font-size: 14px; text-transform: uppercase;">1. Deterministic Risk Assessment</h3>
-      <div style="display: flex; gap: 24px; align-items: center;">
+  <!-- PDF Dossier Preview & Export Modal -->
+  <div id="dossier-modal" class="dossier-modal-backdrop">
+    <div class="dossier-modal-container">
+      <div class="dossier-modal-header">
         <div>
-          <span style="font-size: 32px; font-weight: bold; font-family: monospace;" id="pdf-score">100/100</span>
+          <div style="font-weight: 700; color: #fff; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+            <span>🛡️</span>
+            <span>Forensic Evidence Dossier Preview</span>
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+            Auditable Bank Pattern Evidence • Operation Abhedya-Chakra
+          </div>
         </div>
-        <div style="font-size: 12px; line-height: 1.5;" id="pdf-score-summary"></div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button class="btn" onclick="triggerNativePrint()" style="background: #0284c7;">
+            <span>🖨️</span> Save as PDF / Print (Vector)
+          </button>
+          <button class="btn btn-secondary" id="btn-html2pdf-dl" onclick="triggerHtml2PdfDownload()">
+            <span>📥</span> Download PDF File
+          </button>
+          <button class="btn btn-secondary" onclick="closeDossierModal()">✕ Close</button>
+        </div>
       </div>
-    </div>
+      <div class="dossier-modal-body">
+        <!-- PDF Print Template (Clean Printable Audit Dossier) -->
+        <div id="printable-report" class="dossier-sheet">
+          <div style="border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+              <h1 style="font-size: 20px; font-weight: 800; margin: 0; color: #000;">Operation Abhedya-Chakra — Forensic Investigation Dossier</h1>
+              <div style="font-size: 12px; color: #475569; margin-top: 4px; font-weight: 600;">Indore Police • Financial Forensic Analysis Division • Auditable Banking Evidence System</div>
+            </div>
+            <div style="text-align: right; font-size: 11px; color: #334155;">
+              <div>Dossier Date: <span id="pdf-date"></span></div>
+              <div>Target Account: <strong id="pdf-account-id" style="font-family: monospace; font-size: 13px;"></strong></div>
+            </div>
+          </div>
 
-    <div style="margin-bottom: 16px;">
-      <h3 style="margin: 0 0 8px 0; font-size: 14px; text-transform: uppercase;">2. Matched Indicators Breakdown</h3>
-      <table style="width: 100%; border-collapse: collapse; font-size: 11px;" border="1" cellpadding="6">
-        <thead>
-          <tr style="background: #f1f5f9;">
-            <th>Indicator</th>
-            <th>Contribution</th>
-            <th>Measured Envelope & Basis</th>
-          </tr>
-        </thead>
-        <tbody id="pdf-indicators-tbody"></tbody>
-      </table>
-    </div>
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; margin-bottom: 16px;">
+            <h3 style="margin: 0 0 8px 0; font-size: 13px; text-transform: uppercase; color: #0f172a;">1. Deterministic Risk Assessment</h3>
+            <div style="display: flex; gap: 24px; align-items: center;">
+              <div>
+                <span style="font-size: 30px; font-weight: 800; font-family: monospace;" id="pdf-score">100/100</span>
+              </div>
+              <div style="font-size: 12px; line-height: 1.5; color: #334155;" id="pdf-score-summary"></div>
+            </div>
+          </div>
 
-    <div style="margin-bottom: 16px;">
-      <h3 style="margin: 0 0 8px 0; font-size: 14px; text-transform: uppercase;">3. Account Flow Summary Metrics</h3>
-      <table style="width: 100%; border-collapse: collapse; font-size: 11px;" border="1" cellpadding="6">
-        <tbody id="pdf-metrics-tbody"></tbody>
-      </table>
-    </div>
+          <div style="margin-bottom: 16px;">
+            <h3 style="margin: 0 0 8px 0; font-size: 13px; text-transform: uppercase; color: #0f172a;">2. Matched Indicators Breakdown</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px;" border="1" cellpadding="6">
+              <thead>
+                <tr style="background: #f1f5f9;">
+                  <th style="text-align: left;">Indicator</th>
+                  <th style="text-align: left; width: 100px;">Contribution</th>
+                  <th style="text-align: left;">Measured Envelope & Basis</th>
+                </tr>
+              </thead>
+              <tbody id="pdf-indicators-tbody"></tbody>
+            </table>
+          </div>
 
-    <div style="margin-bottom: 16px;">
-      <h3 style="margin: 0 0 8px 0; font-size: 14px; text-transform: uppercase;">4. Forensic Case Explanation</h3>
-      <div id="pdf-explanation" style="font-size: 11px; line-height: 1.6; border: 1px solid #cbd5e1; padding: 10px; background: #fafafa; white-space: pre-wrap;"></div>
-    </div>
+          <div style="margin-bottom: 16px;">
+            <h3 style="margin: 0 0 8px 0; font-size: 13px; text-transform: uppercase; color: #0f172a;">3. Account Flow Summary Metrics</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px;" border="1" cellpadding="6">
+              <tbody id="pdf-metrics-tbody"></tbody>
+            </table>
+            <div id="pdf-infra-box" style="margin-top: 8px; font-size: 11px; color: #475569;"></div>
+          </div>
 
-    <div style="margin-bottom: 16px;">
-      <h3 style="margin: 0 0 8px 0; font-size: 14px; text-transform: uppercase;">5. Observed Chronological Paths</h3>
-      <table style="width: 100%; border-collapse: collapse; font-size: 10px;" border="1" cellpadding="5">
-        <thead>
-          <tr style="background: #f1f5f9;">
-            <th>In Row</th>
-            <th>Out Row</th>
-            <th>Transit Chain</th>
-            <th>In Amount</th>
-            <th>Out Amount</th>
-            <th>Ratio</th>
-            <th>Time Gap</th>
-          </tr>
-        </thead>
-        <tbody id="pdf-paths-tbody"></tbody>
-      </table>
-    </div>
+          <div style="margin-bottom: 16px;">
+            <h3 style="margin: 0 0 8px 0; font-size: 13px; text-transform: uppercase; color: #0f172a;">4. Forensic Case Explanation</h3>
+            <div id="pdf-explanation" style="font-size: 11px; line-height: 1.6; border: 1px solid #cbd5e1; padding: 10px; background: #fafafa; white-space: pre-wrap; color: #1e293b;"></div>
+          </div>
 
-    <div style="border-top: 1px solid #ccc; padding-top: 10px; font-size: 10px; color: #666; line-height: 1.4;">
-      <strong>Statutory Limitations:</strong> No ground-truth labels exist in dataset; all findings represent observed behavioral patterns only. Possible flow is not physical funds movement. All cutoffs represent documented design choices.
+          <div style="margin-bottom: 16px;">
+            <h3 style="margin: 0 0 8px 0; font-size: 13px; text-transform: uppercase; color: #0f172a;">5. Observed Chronological Paths</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 10px;" border="1" cellpadding="5">
+              <thead>
+                <tr style="background: #f1f5f9;">
+                  <th>In Row</th>
+                  <th>Out Row</th>
+                  <th>Transit Chain</th>
+                  <th>In Amount</th>
+                  <th>Out Amount</th>
+                  <th>Ratio</th>
+                  <th>Time Gap</th>
+                </tr>
+              </thead>
+              <tbody id="pdf-paths-tbody"></tbody>
+            </table>
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <h3 style="margin: 0 0 8px 0; font-size: 13px; text-transform: uppercase; color: #0f172a;">6. Matched Evidence Records</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 10px;" border="1" cellpadding="5">
+              <thead>
+                <tr style="background: #f1f5f9;">
+                  <th>Row ID</th>
+                  <th>Timestamp</th>
+                  <th>Sender</th>
+                  <th>Receiver</th>
+                  <th>Amount</th>
+                  <th>Indicator Context</th>
+                </tr>
+              </thead>
+              <tbody id="pdf-evidence-tbody"></tbody>
+            </table>
+          </div>
+
+          <div style="border-top: 1px solid #cbd5e1; padding-top: 10px; font-size: 10px; color: #64748b; line-height: 1.4;">
+            <strong>Statutory Limitations:</strong> No ground-truth labels exist in dataset; all findings represent observed behavioral patterns only. Possible flow is not physical funds movement. All cutoffs represent documented design choices.
+          </div>
+
+          <div style="margin-top: 24px; padding-top: 14px; border-top: 1px dashed #94a3b8; display: flex; justify-content: space-between; font-size: 10px; color: #475569;">
+            <div>
+              <div><strong>Investigating Officer:</strong> _____________________________</div>
+              <div style="margin-top: 4px;">Badge / Officer ID: _____________________________</div>
+            </div>
+            <div style="text-align: right;">
+              <div><strong>Cyber & Financial Crime Division</strong></div>
+              <div style="margin-top: 4px;">Indore Police Headquarters • Verification Stamp</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1717,6 +1878,13 @@
         <tr><td><strong>Out/In Amount Ratio:</strong> ${metrics.out_in_ratio !== null ? Number(metrics.out_in_ratio).toFixed(4) : 'N/A'}</td><td><strong>Largest Inflow:</strong> ₹${(metrics.largest_in_amount || 0).toLocaleString('en-IN')}</td></tr>
       `;
 
+      const infraBox = document.getElementById('pdf-infra-box');
+      if (infraBox) {
+        const ips = metrics.distinct_ips || 0;
+        const devices = metrics.distinct_devices || 0;
+        infraBox.innerHTML = `<strong>Digital Infrastructure:</strong> Distinct IPs: ${ips} | Distinct Devices: ${devices}`;
+      }
+
       // Explanation
       document.getElementById('pdf-explanation').innerText = currentExplainData.explanation || 'N/A';
 
@@ -1740,28 +1908,97 @@
         pTbody.innerHTML = '<tr><td colspan="7">No observed paths recorded.</td></tr>';
       }
 
-      // Export using html2pdf if loaded, else fallback to print
-      const el = document.getElementById('printable-report');
-      el.style.display = 'block';
-
-      if (typeof html2pdf !== 'undefined') {
-        const opt = {
-          margin: 10,
-          filename: `Abhedya_Chakra_Dossier_${accId}.pdf`,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2 },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-        html2pdf().set(opt).from(el).save().then(() => {
-          el.style.display = 'none';
-        }).catch(() => {
-          window.print();
-          el.style.display = 'none';
-        });
-      } else {
-        window.print();
-        el.style.display = 'none';
+      // Evidence Records
+      const evTbody = document.getElementById('pdf-evidence-tbody');
+      if (evTbody) {
+        evTbody.innerHTML = '';
+        const evObj = currentAccountData.evidence_by_indicator || {};
+        let evCount = 0;
+        for (const [indName, evList] of Object.entries(evObj)) {
+          (evList || []).slice(0, 5).forEach(row => {
+            evCount++;
+            evTbody.innerHTML += `
+              <tr>
+                <td>${row.row_id || 'N/A'}</td>
+                <td>${row.timestamp || 'N/A'}</td>
+                <td>${row.sender || 'N/A'}</td>
+                <td>${row.receiver || 'N/A'}</td>
+                <td>₹${Number(row.amount || 0).toLocaleString('en-IN')}</td>
+                <td><strong>${indName}:</strong> ${row.reason || 'Envelope matched'}</td>
+              </tr>
+            `;
+          });
+        }
+        if (evCount === 0) {
+          evTbody.innerHTML = '<tr><td colspan="6">No transaction evidence records triggered.</td></tr>';
+        }
       }
+
+      // Open Dossier Preview Modal
+      document.getElementById('dossier-modal').style.display = 'flex';
+    }
+
+    function closeDossierModal() {
+      document.getElementById('dossier-modal').style.display = 'none';
+    }
+
+    function triggerNativePrint() {
+      if (!currentAccountData) return;
+      const accId = currentAccountData.account_id;
+      const origTitle = document.title;
+      document.title = `Abhedya_Chakra_Dossier_${accId}`;
+      window.print();
+      const restoreTitle = () => { document.title = origTitle; };
+      window.addEventListener('afterprint', restoreTitle, { once: true });
+      setTimeout(restoreTitle, 3000);
+    }
+
+    function triggerHtml2PdfDownload() {
+      if (!currentAccountData) return;
+      const accId = currentAccountData.account_id;
+      const btn = document.getElementById('btn-html2pdf-dl');
+      const origBtnHtml = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.innerHTML = '<span>⏳ Compiling PDF...</span>';
+        btn.disabled = true;
+      }
+
+      if (typeof html2pdf === 'undefined') {
+        alert('Direct PDF compiler unavailable offline. Switching to Native Vector Print...');
+        if (btn) { btn.innerHTML = origBtnHtml; btn.disabled = false; }
+        triggerNativePrint();
+        return;
+      }
+
+      const el = document.getElementById('printable-report');
+      const opt = {
+        margin: [10, 10, 10, 10],
+        filename: `Abhedya_Chakra_Dossier_${accId}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          scrollY: 0,
+          windowWidth: 1024
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      };
+
+      html2pdf().set(opt).from(el).save().then(() => {
+        if (btn) {
+          btn.innerHTML = '<span>✅ PDF Downloaded</span>';
+          setTimeout(() => {
+            btn.innerHTML = origBtnHtml;
+            btn.disabled = false;
+          }, 2500);
+        }
+      }).catch((err) => {
+        console.warn('html2pdf failed, falling back to print:', err);
+        if (btn) { btn.innerHTML = origBtnHtml; btn.disabled = false; }
+        triggerNativePrint();
+      });
     }
   </script>
 </body>

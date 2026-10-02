@@ -1080,7 +1080,7 @@
           <div style="background: var(--bg-dark); border: 1px solid var(--card-border); border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <div>
               <div style="font-size: 13px; font-weight: 700; color: #f1f5f9;">
-                Possible exposure (money that passed through; not proven loss)
+                Possible exposure (money that passed through; not proven physical movement)
               </div>
               <div style="font-size: 11px; color: var(--text-dim);">
                 Ranked flagged accounts by cumulative incoming amount
@@ -1202,8 +1202,9 @@
           <h2 id="active-acc-id" style="font-size: 26px; font-family: var(--font-mono); color: #fff; font-weight: 700;">AIRP10000312</h2>
           <span id="active-acc-type" style="font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);">Forensic Dossier</span>
         </div>
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
           <button class="btn btn-secondary" onclick="showLandingView()">← Back to Flagged Accounts</button>
+          <button class="btn btn-secondary" id="btn-top-view-evidence" onclick="openEvidenceModal()" style="border-color: var(--accent-cyan); color: var(--accent-cyan);">📋 View Evidence</button>
           <button class="btn" id="btn-main-pdf-dl" style="background: #0284c7;" onclick="exportPdfReport()">📄 Download PDF Report</button>
           <button class="btn btn-secondary" onclick="openDossierModal()">🖨️ Print / Preview</button>
         </div>
@@ -1219,15 +1220,16 @@
           <div class="score-card">
             <div class="score-caption">Deterministic Risk Score</div>
             <div id="score-val" class="score-num score-high">100 / 100</div>
-            <div id="score-status-text" class="score-subtext">All 4 Behavioral Pattern Indicators Matched</div>
+            <div id="score-status-text" class="score-subtext">Matches 4 measured indicators</div>
           </div>
 
           <!-- Why This Account Was Flagged Card -->
           <div class="panel" id="why-flagged-card" style="margin-bottom: 16px;">
-            <div class="panel-header" style="background: rgba(15, 23, 42, 0.6);">
+            <div class="panel-header" style="background: rgba(15, 23, 42, 0.6); display: flex; justify-content: space-between; align-items: center;">
               <div class="panel-title" style="display: flex; align-items: center; gap: 8px;">
                 <span>🎯 Why This Account Was Flagged</span>
               </div>
+              <button class="btn btn-secondary" onclick="openEvidenceModal()" style="padding: 2px 8px; font-size: 11px; border-color: var(--accent-cyan); color: var(--accent-cyan);">📋 View Evidence</button>
             </div>
             <div class="panel-body" id="why-flagged-body">
               <!-- Rendered dynamically -->
@@ -1301,29 +1303,51 @@
         <!-- COLUMN 2: Transaction Graph & Visual Flow Trace -->
         <div class="col-center">
           <div class="panel" style="height: 100%;">
-            <div class="panel-header">
-              <div class="panel-title">
-                <span>🌐 Interactive Flow Graph</span>
-                <span id="active-trace-tag" style="font-family: var(--font-mono); font-size: 11px; color: var(--accent-cyan); margin-left: 6px;">Row ID: 35196</span>
+            <div class="panel-header" style="flex-wrap: wrap; gap: 8px;">
+              <div class="panel-title" style="display: flex; align-items: center; gap: 6px;">
+                <span>🌐 Forensic Network Graph</span>
+                <span id="active-trace-tag" style="font-family: var(--font-mono); font-size: 11px; color: var(--accent-cyan); margin-left: 4px;">Connected Accounts</span>
               </div>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="font-size: 11px; color: var(--text-dim);">Trace Row:</span>
-                <select id="trace-row-select" onchange="onTraceSelectChange()" style="background: var(--bg-dark); border: 1px solid var(--card-border); color: #fff; font-family: var(--font-mono); font-size: 11px; padding: 4px 8px; border-radius: 4px;">
-                  <!-- Populated dynamically -->
-                </select>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <!-- Graph Mode Switchers -->
+                <div style="display: flex; gap: 4px;">
+                  <button class="btn btn-secondary" id="graph-mode-connected-btn" onclick="switchGraphMode('connected')" style="padding: 3px 8px; font-size: 11px; background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; color: #fff;">
+                    🌐 Connected Accounts
+                  </button>
+                  <button class="btn btn-secondary" id="graph-mode-trace-btn" onclick="switchGraphMode('trace')" style="padding: 3px 8px; font-size: 11px;">
+                    🔄 Flow Trace Paths
+                  </button>
+                </div>
+                <!-- Connected Mode Display Limit -->
+                <div id="graph-limit-control" style="display: flex; align-items: center; gap: 4px;">
+                  <span style="font-size: 11px; color: var(--text-dim);">Limit:</span>
+                  <select id="graph-neighbor-limit" onchange="changeGraphNeighborLimit(this.value)" style="background: var(--bg-dark); border: 1px solid var(--card-border); color: #fff; font-family: var(--font-mono); font-size: 11px; padding: 3px 6px; border-radius: 4px;">
+                    <option value="3">3 / side</option>
+                    <option value="5" selected>5 / side (Default)</option>
+                    <option value="10">10 / side</option>
+                    <option value="20">20 / side</option>
+                  </select>
+                </div>
+                <!-- Trace Mode Row Selector -->
+                <div id="graph-trace-control" style="display: none; align-items: center; gap: 4px;">
+                  <span style="font-size: 11px; color: var(--text-dim);">Row:</span>
+                  <select id="trace-row-select" onchange="onTraceSelectChange()" style="background: var(--bg-dark); border: 1px solid var(--card-border); color: #fff; font-family: var(--font-mono); font-size: 11px; padding: 3px 6px; border-radius: 4px;">
+                    <!-- Populated dynamically -->
+                  </select>
+                </div>
               </div>
             </div>
             <div class="panel-body" style="display: flex; flex-direction: column;">
               <!-- Node & Edge Graph Legend Bar -->
               <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(15, 23, 42, 0.7); border-radius: 6px 6px 0 0; border: 1px solid var(--card-border); border-bottom: none; font-size: 11px; flex-wrap: wrap; gap: 8px;">
                 <div id="graph-topology-stats" style="color: var(--accent-cyan); font-family: var(--font-mono); font-weight: 600;">
-                  🔵 Nodes & Edges Network Graph
+                  🔵 Showing 0 of 0 connected accounts
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center; font-size: 10px;">
-                  <span style="display: flex; align-items: center; gap: 4px; color: #f87171;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444; display: inline-block;"></span> 🔴 Mule Node</span>
-                  <span style="display: flex; align-items: center; gap: 4px; color: #38bdf8;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #0284c7; display: inline-block;"></span> 📥 Source Node</span>
-                  <span style="display: flex; align-items: center; gap: 4px; color: #c084fc;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #9333ea; display: inline-block;"></span> 📤 Sink Node</span>
-                  <span style="display: flex; align-items: center; gap: 4px; color: #94a3b8;"><span style="width: 14px; height: 2px; background: #38bdf8; display: inline-block;"></span> ➔ Directed Edge</span>
+                  <span style="display: flex; align-items: center; gap: 4px; color: #f87171;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444; display: inline-block;"></span> 🎯 Target</span>
+                  <span style="display: flex; align-items: center; gap: 4px; color: #38bdf8;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #0284c7; display: inline-block;"></span> 📥 Inflow</span>
+                  <span style="display: flex; align-items: center; gap: 4px; color: #c084fc;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #9333ea; display: inline-block;"></span> 📤 Outflow</span>
+                  <span style="display: flex; align-items: center; gap: 4px; color: #94a3b8;"><span style="width: 14px; height: 2px; background: #38bdf8; display: inline-block;"></span> ➔ Direction</span>
                 </div>
               </div>
               <div id="graph-card-wrapper" style="position: relative; width: 100%; height: 480px; background: #0d131f; border-radius: 0 0 6px 6px; overflow: hidden; border: 1px solid var(--card-border); transition: all 0.3s ease;">
@@ -1334,11 +1358,15 @@
                   <button class="graph-btn" onclick="graphReset()">Reset</button>
                 </div>
                 <div id="graph-container" style="width: 100%; height: 100%;"></div>
+                <!-- Interactive Node & Edge Details Popover -->
+                <div id="graph-element-popover" style="display: none; position: absolute; bottom: 12px; left: 12px; max-width: 340px; background: rgba(15, 23, 42, 0.95); border: 1px solid var(--accent-cyan); border-radius: 6px; padding: 12px; z-index: 50; box-shadow: 0 6px 20px rgba(0,0,0,0.6); font-size: 11px; backdrop-filter: blur(6px);">
+                  <div id="graph-popover-content"></div>
+                </div>
               </div>
 
               <!-- Trace Disclaimer Box -->
               <div class="disclaimer-box" id="trace-disclaimer">
-                All identified paths represent possible onward flow only. No proof of physical funds movement or subjective intent is asserted.
+                All identified paths and counterparty connections represent observed database ledger records only. No physical funds movement or subjective intent is asserted.
               </div>
             </div>
           </div>
@@ -1369,7 +1397,7 @@
 
               <!-- Limitations Section (Always displayed) -->
               <div class="limitations-box">
-                <h4>Statutory Limitations & Audit Interpretation</h4>
+                <h4>Limitations of This Analysis & Audit Interpretation</h4>
                 <ul id="limitations-list">
                   <li>No ground-truth labels exist in dataset; all findings represent observed behavioral patterns only.</li>
                   <li>Possible flow is not proven movement of physical funds.</li>
@@ -1500,6 +1528,83 @@
     </div>
   </div>
 
+  <!-- Evidence Records Modal (Upgrade 2) -->
+  <div id="evidence-modal" class="dossier-modal-backdrop" onclick="if(event.target===this)closeEvidenceModal()">
+    <div class="dossier-modal-container" style="width: 1100px; max-width: 96vw;">
+      <div class="dossier-modal-header" style="background: #111827; border-bottom: 1px solid var(--card-border);">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 20px;">📋</span>
+          <div>
+            <div style="font-weight: 700; color: #fff; font-size: 15px; display: flex; align-items: center; gap: 8px;">
+              <span>Verified Contributing Evidence Records</span>
+              <span id="evidence-modal-acc-badge" class="badge" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-family: var(--font-mono); font-size: 12px; padding: 2px 8px;"></span>
+            </div>
+            <div id="evidence-modal-subtitle" style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">
+              Exact transaction records contributing to measured detection indicators
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button class="btn btn-secondary" onclick="closeEvidenceModal()" style="padding: 4px 10px; font-size: 12px;">✕ Close</button>
+        </div>
+      </div>
+      <div class="dossier-modal-body" style="padding: 16px; background: #090d16; display: flex; flex-direction: column; gap: 12px; max-height: 82vh; overflow-y: auto;">
+        <!-- Evidence Controls Bar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; background: rgba(15, 23, 42, 0.8); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--card-border);">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-size: 11px; color: var(--text-dim);">Indicator:</span>
+            <select id="evidence-modal-filter-indicator" onchange="filterEvidenceModalRecords()" style="background: var(--bg-dark); border: 1px solid var(--card-border); color: #fff; font-family: var(--font-mono); font-size: 11px; padding: 4px 8px; border-radius: 4px;">
+              <option value="all">All Indicators</option>
+            </select>
+            <input type="text" id="evidence-modal-search" placeholder="🔍 Search row, sender, receiver, amount..." oninput="filterEvidenceModalRecords()" class="search-input" style="padding: 4px 10px; font-size: 11px; width: 230px; height: 28px;">
+          </div>
+          <div id="evidence-modal-stats" style="font-size: 11px; font-family: var(--font-mono); color: var(--accent-cyan); font-weight: 600;">
+            Showing 0 records
+          </div>
+        </div>
+
+        <!-- Evidence Table -->
+        <div class="table-container" style="margin-bottom: 0;">
+          <table id="evidence-modal-table">
+            <thead>
+              <tr>
+                <th style="min-width: 140px;">Indicator</th>
+                <th style="min-width: 80px;">Row ID</th>
+                <th style="min-width: 110px;">Transaction ID</th>
+                <th style="min-width: 120px;">Sender</th>
+                <th style="min-width: 120px;">Receiver</th>
+                <th style="min-width: 110px;">Amount (INR)</th>
+                <th style="min-width: 130px;">Timestamp</th>
+                <th style="min-width: 180px;">Evidence / Reason</th>
+                <th style="min-width: 130px; text-align: center;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="evidence-modal-tbody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Single Transaction Audit Modal -->
+  <div id="txn-audit-modal" class="dossier-modal-backdrop" onclick="if(event.target===this)closeTxnAuditModal()">
+    <div class="dossier-modal-container" style="width: 650px; max-width: 95vw;">
+      <div class="dossier-modal-header" style="background: #111827; border-bottom: 1px solid var(--card-border);">
+        <div style="font-weight: 700; color: #fff; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+          <span>🔍</span>
+          <span>Transaction Audit Record</span>
+          <span id="txn-audit-row-badge" class="badge" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-family: var(--font-mono); font-size: 11px; padding: 2px 6px;"></span>
+        </div>
+        <button class="btn btn-secondary" onclick="closeTxnAuditModal()" style="padding: 3px 8px; font-size: 11px;">✕ Close</button>
+      </div>
+      <div class="dossier-modal-body" style="padding: 16px; background: #090d16; max-height: 75vh; overflow-y: auto;">
+        <div id="txn-audit-content"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- PDF Dossier Preview & Export Modal -->
   <div id="dossier-modal" class="dossier-modal-backdrop">
     <div class="dossier-modal-container">
@@ -1529,7 +1634,7 @@
           <div style="border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: flex-end;">
             <div>
               <h1 style="font-size: 20px; font-weight: 800; margin: 0; color: #000;">Operation Abhedya-Chakra — Forensic Investigation Dossier</h1>
-              <div style="font-size: 12px; color: #475569; margin-top: 4px; font-weight: 600;">Indore Police • Financial Forensic Analysis Division • Auditable Banking Evidence System</div>
+              <div style="font-size: 12px; color: #475569; margin-top: 4px; font-weight: 600;">Financial Forensic Analysis Division • Auditable Banking Evidence System</div>
             </div>
             <div style="text-align: right; font-size: 11px; color: #334155;">
               <div>Dossier Date: <span id="pdf-date"></span></div>
@@ -1610,7 +1715,7 @@
           </div>
 
           <div style="border-top: 1px solid #cbd5e1; padding-top: 10px; font-size: 10px; color: #64748b; line-height: 1.4;">
-            <strong>Statutory Limitations:</strong> No ground-truth labels exist in dataset; all findings represent observed behavioral patterns only. Possible flow is not physical funds movement. All cutoffs represent documented design choices.
+            <strong>LIMITATIONS OF THIS ANALYSIS:</strong> No ground-truth labels exist in dataset; all findings represent observed behavioral patterns only. Possible flow is not physical funds movement. All cutoffs represent documented design choices.
           </div>
 
           <div style="margin-top: 24px; padding-top: 14px; border-top: 1px dashed #94a3b8; display: flex; justify-content: space-between; font-size: 10px; color: #475569;">
@@ -1620,7 +1725,7 @@
             </div>
             <div style="text-align: right;">
               <div><strong>Cyber & Financial Crime Division</strong></div>
-              <div style="margin-top: 4px;">Indore Police Headquarters • Verification Stamp</div>
+              <div style="margin-top: 4px;">Financial Forensic Investigation Division • Case Evidence Stamp</div>
             </div>
           </div>
         </div>
@@ -1639,6 +1744,10 @@
     let currentAccountData = null;
     let currentExplainData = null;
     let currentTraceData = null;
+    let currentConnectedData = null;
+    let graphMode = 'connected';
+    let graphNeighborLimit = 5;
+    let currentEvidenceRecords = [];
 
     // Initialization
     window.addEventListener('DOMContentLoaded', () => {
@@ -2232,7 +2341,7 @@
           <!-- Modal Action Footer -->
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding-top: 6px; border-top: 1px solid var(--card-border);">
             <div style="font-size: 11px; color: var(--text-muted);">
-              Deterministic read-only analysis • 0 physical fund loss asserted
+              Deterministic read-only analysis • 0 physical funds movement asserted
             </div>
             <div style="display: flex; gap: 8px;">
               <button class="btn" onclick="searchAccount('${acc.account_id}'); closeMuleDetailsModal();" style="background: linear-gradient(135deg, #0284c7, #0369a1); font-size: 12px; padding: 6px 14px;">
@@ -2503,10 +2612,11 @@
       document.getElementById('acc-search-input').value = accountId;
 
       try {
-        // Parallel fetch detect and explain endpoints
-        const [detectResp, explainResp] = await Promise.all([
+        // Parallel fetch detect, explain, and connected endpoints
+        const [detectResp, explainResp, connectedResp] = await Promise.all([
           fetch(`${API_BASE}/api/detect/${encodeURIComponent(accountId)}`),
-          fetch(`${API_BASE}/api/explain/${encodeURIComponent(accountId)}`)
+          fetch(`${API_BASE}/api/explain/${encodeURIComponent(accountId)}`),
+          fetch(`${API_BASE}/api/connected/${encodeURIComponent(accountId)}?limit=${graphNeighborLimit}`)
         ]);
 
         if (detectResp.status === 404 || explainResp.status === 404) {
@@ -2521,6 +2631,11 @@
 
         currentAccountData = await detectResp.json();
         currentExplainData = await explainResp.json();
+        if (connectedResp.ok) {
+          currentConnectedData = await connectedResp.json();
+        } else {
+          currentConnectedData = null;
+        }
 
         renderInvestigationView(currentAccountData, currentExplainData);
         hideLoading();
@@ -2540,6 +2655,8 @@
       const ctx = explainData.context || {};
       const metrics = detectData.metrics || ctx.account_summary || {};
       const score = detectData.risk_score;
+      const matched = detectData.matched_indicators || [];
+      const matchedCount = matched.length;
 
       // 1. Header & Score
       document.getElementById('active-acc-id').innerText = detectData.account_id;
@@ -2548,13 +2665,13 @@
 
       if (score >= 80) {
         scoreValEl.className = 'score-num score-high';
-        document.getElementById('score-status-text').innerText = 'Matches High-Risk Behavioral Profile';
+        document.getElementById('score-status-text').innerText = `Matches ${matchedCount} measured indicators`;
       } else if (score > 0) {
         scoreValEl.className = 'score-num score-med';
-        document.getElementById('score-status-text').innerText = 'Moderate Behavioral Signal';
+        document.getElementById('score-status-text').innerText = `Matches ${matchedCount} measured indicators`;
       } else {
         scoreValEl.className = 'score-num score-zero';
-        document.getElementById('score-status-text').innerText = 'No Indicators Matched (Baseline)';
+        document.getElementById('score-status-text').innerText = 'Matches 0 measured indicators (Baseline)';
       }
 
       // 1b. Why This Account Was Flagged Card
@@ -2573,7 +2690,7 @@
               ✓ Clean Account (Baseline Profile)
             </div>
             <div style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-top: 4px;">
-              Zero behavioral indicators matched. Out/In flow ratio, timing, and counterparty volumes fall within standard operating baselines.
+              Matches 0 measured indicators. Out/In flow ratio, timing, and counterparty volumes fall within standard operating baselines.
             </div>
             <div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px; font-family: var(--font-mono);">
               <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Risk Score: <strong style="color: #10b981;">0 / 100</strong></div>
@@ -2583,23 +2700,30 @@
             </div>
           `;
         } else {
-          const indPills = (detectData.matched_indicators || []).map(i => 
+          const indPills = matched.map(i => 
             `<span style="display: inline-block; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; padding: 2px 7px; border-radius: 4px; margin: 2px; font-size: 11px; font-family: var(--font-mono);">${i.indicator} (+${i.contribution} pts)</span>`
           ).join(' ');
 
           const ratioVal = metrics.out_in_ratio !== null && metrics.out_in_ratio !== undefined ? Number(metrics.out_in_ratio).toFixed(4) : 'N/A';
+          const expSnippet = explainData.explanation ? explainData.explanation.substring(0, 190) + '...' : 'Deterministic pattern envelopes matched.';
 
           whyCardBody.innerHTML = `
             <div style="font-size: 12px; color: var(--text-main); margin-bottom: 8px; line-height: 1.4;">
-              Deterministic pattern envelopes met across <strong>${(detectData.matched_indicators || []).length}</strong> indicators totaling <strong>${score} points</strong>:
+              Deterministic risk assessment: <strong>Matches ${matchedCount} measured indicators</strong> totaling <strong>${score} points</strong>:
             </div>
             <div style="margin-bottom: 10px;">${indPills}</div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px; font-family: var(--font-mono);">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px; font-family: var(--font-mono); margin-bottom: 10px;">
               <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Risk Score: <strong style="color: #ef4444;">${score} / 100</strong></div>
               <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Flow Ratio: <strong>${ratioVal}</strong></div>
               <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">In/Out Txns: <strong>${metrics.in_degree || 0} in / ${metrics.out_degree || 0} out</strong></div>
-              <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Evidence Rows: <strong style="color: var(--accent-cyan);">${totalEvRows} rows</strong></div>
+              <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Evidence Records: <strong style="color: var(--accent-cyan);">${totalEvRows} records</strong></div>
             </div>
+            <div style="background: var(--bg-dark); border: 1px solid var(--card-border); border-radius: 4px; padding: 8px; font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-bottom: 10px;">
+              <strong style="color: #cbd5e1;">Deterministic Explanation:</strong> ${expSnippet}
+            </div>
+            <button class="btn" onclick="openEvidenceModal()" style="width: 100%; justify-content: center; background: #0284c7; font-size: 11px; padding: 6px 12px; font-weight: 600;">
+              📋 View Evidence (${totalEvRows} Records)
+            </button>
           `;
         }
       }
@@ -2607,7 +2731,6 @@
       // 2. Matched Indicators List
       const indListEl = document.getElementById('indicator-list-container');
       indListEl.innerHTML = '';
-      const matched = detectData.matched_indicators || [];
       document.getElementById('matched-ind-cnt').innerText = `${matched.length} Active`;
 
       if (matched.length === 0) {
@@ -2806,15 +2929,320 @@
         sel.appendChild(opt);
       });
 
-      // Load trace for first row_id
-      const firstRow = Array.from(rowIds)[0];
-      loadTraceForTxn(firstRow);
+      // If in connected mode and connected data is available, render connected graph by default
+      if (graphMode === 'connected' && currentConnectedData) {
+        renderConnectedAccountsGraph(currentConnectedData);
+      } else {
+        const firstRow = Array.from(rowIds)[0];
+        if (firstRow) loadTraceForTxn(firstRow);
+      }
     }
 
     function onTraceSelectChange() {
       const sel = document.getElementById('trace-row-select');
       const rid = sel.value;
-      if (rid) loadTraceForTxn(Number(rid));
+      if (rid) {
+        switchGraphMode('trace');
+        loadTraceForTxn(Number(rid));
+      }
+    }
+
+    // Graph Mode Switcher
+    function switchGraphMode(mode) {
+      graphMode = mode;
+      const connBtn = document.getElementById('graph-mode-connected-btn');
+      const traceBtn = document.getElementById('graph-mode-trace-btn');
+      const limitCtrl = document.getElementById('graph-limit-control');
+      const traceCtrl = document.getElementById('graph-trace-control');
+
+      if (mode === 'connected') {
+        if (connBtn) {
+          connBtn.style.background = 'rgba(56, 189, 248, 0.2)';
+          connBtn.style.borderColor = '#38bdf8';
+          connBtn.style.color = '#fff';
+        }
+        if (traceBtn) {
+          traceBtn.style.background = '';
+          traceBtn.style.borderColor = '';
+          traceBtn.style.color = '';
+        }
+        if (limitCtrl) limitCtrl.style.display = 'flex';
+        if (traceCtrl) traceCtrl.style.display = 'none';
+
+        if (currentConnectedData) {
+          renderConnectedAccountsGraph(currentConnectedData);
+        } else if (currentAccountData) {
+          loadConnectedAccounts(currentAccountData.account_id, graphNeighborLimit);
+        }
+      } else {
+        if (traceBtn) {
+          traceBtn.style.background = 'rgba(56, 189, 248, 0.2)';
+          traceBtn.style.borderColor = '#38bdf8';
+          traceBtn.style.color = '#fff';
+        }
+        if (connBtn) {
+          connBtn.style.background = '';
+          connBtn.style.borderColor = '';
+          connBtn.style.color = '';
+        }
+        if (limitCtrl) limitCtrl.style.display = 'none';
+        if (traceCtrl) traceCtrl.style.display = 'flex';
+
+        if (currentTraceData) {
+          renderCytoscapeGraph(currentTraceData);
+        } else {
+          const sel = document.getElementById('trace-row-select');
+          if (sel && sel.value) loadTraceForTxn(Number(sel.value));
+        }
+      }
+    }
+
+    // Display limit change handler
+    async function changeGraphNeighborLimit(val) {
+      graphNeighborLimit = parseInt(val) || 5;
+      if (currentAccountData) {
+        await loadConnectedAccounts(currentAccountData.account_id, graphNeighborLimit);
+      }
+    }
+
+    // Fetch Connected Accounts from backend
+    async function loadConnectedAccounts(accId, limit) {
+      try {
+        const resp = await fetch(`${API_BASE}/api/connected/${encodeURIComponent(accId)}?limit=${limit}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        currentConnectedData = await resp.json();
+        if (graphMode === 'connected') {
+          renderConnectedAccountsGraph(currentConnectedData);
+        }
+      } catch (e) {
+        console.error('Failed to load connected accounts:', e);
+      }
+    }
+
+    // Render 1-Hop Connected Accounts Directed Network Graph
+    function renderConnectedAccountsGraph(connectedData) {
+      const container = document.getElementById('graph-container');
+      if (!container || !connectedData) return;
+
+      closeGraphPopover();
+      const targetAcc = connectedData.account_id;
+      const incoming = connectedData.incoming || [];
+      const outgoing = connectedData.outgoing || [];
+      const displayedCount = incoming.length + outgoing.length;
+      const totalCount = (connectedData.total_incoming_accounts || 0) + (connectedData.total_outgoing_accounts || 0);
+
+      // Status text: Showing N of M
+      const statsEl = document.getElementById('graph-topology-stats');
+      if (statsEl) {
+        statsEl.innerHTML = `🔵 <strong>Showing ${displayedCount} of ${totalCount} connected accounts</strong> (${incoming.length}/${connectedData.total_incoming_accounts} in, ${outgoing.length}/${connectedData.total_outgoing_accounts} out)`;
+      }
+      const tagEl = document.getElementById('active-trace-tag');
+      if (tagEl) {
+        tagEl.innerHTML = `Connected <span style="color:#38bdf8; font-weight:700;">(${displayedCount}/${totalCount})</span>`;
+      }
+
+      const elements = [];
+      const nodeSet = new Set();
+
+      // Target Node in Center
+      nodeSet.add(targetAcc);
+      elements.push({
+        data: {
+          id: targetAcc,
+          label: targetAcc,
+          isPivot: true,
+          role: 'mule',
+          roleLabel: '🎯 TARGET ACCOUNT',
+          fullLabel: `🎯 TARGET ACCOUNT\n${targetAcc}`,
+          account_id: targetAcc
+        }
+      });
+
+      // Incoming Counterparties
+      incoming.forEach((item, idx) => {
+        const acc = item.account_id;
+        if (!nodeSet.has(acc)) {
+          nodeSet.add(acc);
+          elements.push({
+            data: {
+              id: acc,
+              label: acc,
+              isPivot: false,
+              role: 'source',
+              roleLabel: '📥 INFLOW',
+              fullLabel: `📥 INFLOW\n${acc}`,
+              account_id: acc,
+              total_amount: item.total_amount,
+              transaction_count: item.transaction_count,
+              row_id: item.sample_row_id,
+              timestamp: item.sample_timestamp
+            }
+          });
+        }
+        elements.push({
+          data: {
+            id: `e-in-${acc}-${targetAcc}-${idx}`,
+            source: acc,
+            target: targetAcc,
+            amount: `₹${Number(item.total_amount).toLocaleString('en-IN')}`,
+            label: `₹${Number(item.total_amount).toLocaleString('en-IN')}${item.sample_row_id ? ` [Row ${item.sample_row_id}]` : ''}`,
+            row_id: item.sample_row_id,
+            timestamp: item.sample_timestamp,
+            txnCount: item.transaction_count
+          }
+        });
+      });
+
+      // Outgoing Counterparties
+      outgoing.forEach((item, idx) => {
+        const acc = item.account_id;
+        if (!nodeSet.has(acc)) {
+          nodeSet.add(acc);
+          elements.push({
+            data: {
+              id: acc,
+              label: acc,
+              isPivot: false,
+              role: 'sink',
+              roleLabel: '📤 OUTFLOW',
+              fullLabel: `📤 OUTFLOW\n${acc}`,
+              account_id: acc,
+              total_amount: item.total_amount,
+              transaction_count: item.transaction_count,
+              row_id: item.sample_row_id,
+              timestamp: item.sample_timestamp
+            }
+          });
+        }
+        elements.push({
+          data: {
+            id: `e-out-${targetAcc}-${acc}-${idx}`,
+            source: targetAcc,
+            target: acc,
+            amount: `₹${Number(item.total_amount).toLocaleString('en-IN')}`,
+            label: `₹${Number(item.total_amount).toLocaleString('en-IN')}${item.sample_row_id ? ` [Row ${item.sample_row_id}]` : ''}`,
+            row_id: item.sample_row_id,
+            timestamp: item.sample_timestamp,
+            txnCount: item.transaction_count
+          }
+        });
+      });
+
+      if (typeof cytoscape === 'undefined') {
+        isSvgGraphActive = true;
+        renderInteractiveSvgNodeEdgeGraph(elements, targetAcc);
+        return;
+      }
+
+      isSvgGraphActive = false;
+      if (cy) {
+        try { cy.destroy(); } catch (e) {}
+      }
+
+      try {
+        cy = cytoscape({
+          container: container,
+          elements: elements,
+          style: [
+            {
+              selector: 'node',
+              style: {
+                'background-color': '#0f172a',
+                'border-width': 2.5,
+                'border-color': '#38bdf8',
+                'label': 'data(fullLabel)',
+                'text-wrap': 'wrap',
+                'color': '#f8fafc',
+                'font-size': '10px',
+                'font-family': 'monospace',
+                'text-valign': 'center',
+                'text-halign': 'center',
+                'width': 135,
+                'height': 48,
+                'shape': 'roundrectangle',
+                'cursor': 'pointer'
+              }
+            },
+            {
+              selector: 'node[role = "mule"], node[?isPivot]',
+              style: {
+                'background-color': '#450a0a',
+                'border-color': '#ef4444',
+                'border-width': 3.5,
+                'color': '#ffffff',
+                'font-weight': 'bold',
+                'width': 150,
+                'height': 52
+              }
+            },
+            {
+              selector: 'node[role = "source"]',
+              style: {
+                'background-color': '#082f49',
+                'border-color': '#38bdf8',
+                'border-width': 2.5
+              }
+            },
+            {
+              selector: 'node[role = "sink"]',
+              style: {
+                'background-color': '#3b0764',
+                'border-color': '#c084fc',
+                'border-width': 2.5
+              }
+            },
+            {
+              selector: 'edge',
+              style: {
+                'width': 3,
+                'line-color': '#0284c7',
+                'target-arrow-color': '#38bdf8',
+                'target-arrow-shape': 'triangle',
+                'arrow-scale': 1.5,
+                'curve-style': 'bezier',
+                'label': 'data(label)',
+                'font-size': '10px',
+                'font-weight': 'bold',
+                'color': '#38bdf8',
+                'text-rotation': 'autorotate',
+                'text-margin-y': -10,
+                'font-family': 'monospace',
+                'text-background-color': '#090d16',
+                'text-background-opacity': 0.9,
+                'text-background-padding': 3,
+                'text-border-color': '#0284c7',
+                'text-border-width': 1,
+                'text-border-opacity': 0.7,
+                'cursor': 'pointer'
+              }
+            }
+          ],
+          layout: {
+            name: 'breadthfirst',
+            directed: true,
+            padding: 35,
+            spacingFactor: 1.4
+          }
+        });
+
+        // Interactive Click Listeners in Cytoscape
+        cy.on('tap', 'node', function(evt) {
+          showGraphElementDetails('node', evt.target.data());
+        });
+
+        cy.on('tap', 'edge', function(evt) {
+          showGraphElementDetails('edge', evt.target.data());
+        });
+
+        cy.ready(() => {
+          cy.resize();
+          cy.fit(undefined, 30);
+        });
+      } catch (err) {
+        console.warn('Cytoscape render fallback to SVG:', err);
+        isSvgGraphActive = true;
+        renderInteractiveSvgNodeEdgeGraph(elements, targetAcc);
+      }
     }
 
     // Fetch and Render Trace Graph
@@ -2826,6 +3254,25 @@
         btnEl.innerHTML = '<span>⏳ Tracing...</span>';
         btnEl.style.borderColor = 'var(--accent-cyan)';
       }
+
+      // Automatically switch UI to Trace mode
+      graphMode = 'trace';
+      const connBtn = document.getElementById('graph-mode-connected-btn');
+      const traceBtn = document.getElementById('graph-mode-trace-btn');
+      const limitCtrl = document.getElementById('graph-limit-control');
+      const traceCtrl = document.getElementById('graph-trace-control');
+      if (traceBtn) {
+        traceBtn.style.background = 'rgba(56, 189, 248, 0.2)';
+        traceBtn.style.borderColor = '#38bdf8';
+        traceBtn.style.color = '#fff';
+      }
+      if (connBtn) {
+        connBtn.style.background = '';
+        connBtn.style.borderColor = '';
+        connBtn.style.color = '';
+      }
+      if (limitCtrl) limitCtrl.style.display = 'none';
+      if (traceCtrl) traceCtrl.style.display = 'flex';
 
       document.getElementById('active-trace-tag').innerText = `Row ID: ${rowId} (Tracing...)`;
       const sel = document.getElementById('trace-row-select');
@@ -2853,7 +3300,8 @@
         currentTraceData = await resp.json();
 
         const pathCount = (currentTraceData.paths || []).length;
-        document.getElementById('active-trace-tag').innerHTML = `Row ID: ${rowId} <span style="color:#38bdf8; font-weight:700;">(${pathCount} Paths)</span>`;
+        const totalPaths = currentTraceData.total_paths_found || pathCount;
+        document.getElementById('active-trace-tag').innerHTML = `Row ID: ${rowId} <span style="color:#38bdf8; font-weight:700;">(${pathCount}/${totalPaths} Paths)</span>`;
         document.getElementById('trace-disclaimer').innerText = currentTraceData.disclaimer || 'All identified paths represent possible onward flow only.';
 
         renderCytoscapeGraph(currentTraceData);
@@ -2897,16 +3345,12 @@
       }
     }
 
-    // Nodes & Edges Graph State
-    let isSvgGraphActive = false;
-    let svgGraphZoom = 1;
-    let svgGraphTranslate = { x: 0, y: 0 };
-
-    // Nodes & Edges Directed Graph Renderer
+    // Nodes & Edges Directed Graph Renderer (Trace Mode)
     function renderCytoscapeGraph(traceData) {
       const container = document.getElementById('graph-container');
       if (!container) return;
 
+      closeGraphPopover();
       const elements = [];
       const nodeSet = new Set();
       const pivotAcc = currentAccountData ? currentAccountData.account_id : '';
@@ -2925,8 +3369,9 @@
               label: st.sender_account, 
               isPivot: isP,
               role: isP ? 'mule' : 'source',
-              roleLabel: isP ? '🎯 MULE NODE' : '📥 SOURCE NODE',
-              fullLabel: isP ? `🎯 MULE NODE\n${st.sender_account}` : `📥 SOURCE NODE\n${st.sender_account}`
+              roleLabel: isP ? '🎯 TARGET ACCOUNT' : '📥 INFLOW NODE',
+              fullLabel: isP ? `🎯 TARGET ACCOUNT\n${st.sender_account}` : `📥 INFLOW NODE\n${st.sender_account}`,
+              account_id: st.sender_account
             } 
           });
         }
@@ -2939,8 +3384,9 @@
               label: st.receiver_account, 
               isPivot: isP,
               role: isP ? 'mule' : 'sink',
-              roleLabel: isP ? '🎯 MULE NODE' : '📤 SINK NODE',
-              fullLabel: isP ? `🎯 MULE NODE\n${st.receiver_account}` : `📤 SINK NODE\n${st.receiver_account}`
+              roleLabel: isP ? '🎯 TARGET ACCOUNT' : '📤 DISPERSAL SINK',
+              fullLabel: isP ? `🎯 TARGET ACCOUNT\n${st.receiver_account}` : `📤 DISPERSAL SINK\n${st.receiver_account}`,
+              account_id: st.receiver_account
             } 
           });
         }
@@ -2950,7 +3396,9 @@
             source: st.sender_account,
             target: st.receiver_account,
             amount: `₹${Number(st.amount).toLocaleString('en-IN')}`,
-            label: `₹${Number(st.amount).toLocaleString('en-IN')}`
+            label: `₹${Number(st.amount).toLocaleString('en-IN')}`,
+            row_id: st.row_id,
+            timestamp: st.timestamp
           }
         });
       } else {
@@ -2967,8 +3415,9 @@
                   label: u, 
                   isPivot: isP,
                   role: isP ? 'mule' : (v === pivotAcc ? 'source' : 'intermediate'),
-                  roleLabel: isP ? '🎯 MULE NODE' : (v === pivotAcc ? '📥 SOURCE' : 'NODE'),
-                  fullLabel: isP ? `🎯 MULE NODE\n${u}` : (v === pivotAcc ? `📥 SOURCE NODE\n${u}` : `NODE\n${u}`)
+                  roleLabel: isP ? '🎯 TARGET ACCOUNT' : (v === pivotAcc ? '📥 INFLOW NODE' : 'INTERMEDIATE NODE'),
+                  fullLabel: isP ? `🎯 TARGET ACCOUNT\n${u}` : (v === pivotAcc ? `📥 INFLOW NODE\n${u}` : `NODE\n${u}`),
+                  account_id: u
                 } 
               });
             }
@@ -2981,8 +3430,9 @@
                   label: v, 
                   isPivot: isP,
                   role: isP ? 'mule' : (u === pivotAcc ? 'sink' : 'forwarder'),
-                  roleLabel: isP ? '🎯 MULE NODE' : (u === pivotAcc ? '📤 SINK' : 'NODE'),
-                  fullLabel: isP ? `🎯 MULE NODE\n${v}` : (u === pivotAcc ? `📤 SINK NODE\n${v}` : `NODE\n${v}`)
+                  roleLabel: isP ? '🎯 TARGET ACCOUNT' : (u === pivotAcc ? '📤 DISPERSAL SINK' : 'FORWARDING NODE'),
+                  fullLabel: isP ? `🎯 TARGET ACCOUNT\n${v}` : (u === pivotAcc ? `📤 DISPERSAL SINK\n${v}` : `NODE\n${v}`),
+                  account_id: v
                 } 
               });
             }
@@ -2994,7 +3444,10 @@
                   source: u,
                   target: v,
                   amount: `₹${Number(e.amount).toLocaleString('en-IN')}`,
-                  label: `₹${Number(e.amount).toLocaleString('en-IN')} (${e.payment_mode || 'TXN'})`
+                  label: `₹${Number(e.amount).toLocaleString('en-IN')} (${e.payment_mode || 'TXN'})`,
+                  row_id: e.row_id,
+                  timestamp: e.timestamp,
+                  payment_mode: e.payment_mode
                 }
               });
             }
@@ -3002,12 +3455,14 @@
         });
       }
 
-      // Update topology stats bar
+      // Update topology stats bar with "Showing N of M paths"
       const nodeCount = nodeSet.size;
       const edgeCount = elements.filter(e => e.data.source).length;
+      const pathCount = (traceData.paths || []).length;
+      const totalPaths = traceData.total_paths_found || pathCount;
       const statsEl = document.getElementById('graph-topology-stats');
       if (statsEl) {
-        statsEl.innerHTML = `🔵 <strong>${nodeCount} Nodes</strong> & ➡️ <strong>${edgeCount} Directed Edges</strong> • Transit Flow Sequence`;
+        statsEl.innerHTML = `🔵 <strong>Showing ${pathCount} of ${totalPaths} paths</strong> (${nodeCount} Nodes, ${edgeCount} Directed Edges) • Flow Trace Sequence`;
       }
 
       // Check if Cytoscape library loaded
@@ -3042,7 +3497,8 @@
                 'text-halign': 'center',
                 'width': 135,
                 'height': 48,
-                'shape': 'roundrectangle'
+                'shape': 'roundrectangle',
+                'cursor': 'pointer'
               }
             },
             {
@@ -3053,7 +3509,7 @@
                 'border-width': 3.5,
                 'color': '#ffffff',
                 'font-weight': 'bold',
-                'width': 145,
+                'width': 150,
                 'height': 52
               }
             },
@@ -3094,7 +3550,8 @@
                 'text-background-padding': 3,
                 'text-border-color': '#0284c7',
                 'text-border-width': 1,
-                'text-border-opacity': 0.7
+                'text-border-opacity': 0.7,
+                'cursor': 'pointer'
               }
             }
           ],
@@ -3106,6 +3563,15 @@
           }
         });
 
+        // Interactive Click Listeners in Cytoscape
+        cy.on('tap', 'node', function(evt) {
+          showGraphElementDetails('node', evt.target.data());
+        });
+
+        cy.on('tap', 'edge', function(evt) {
+          showGraphElementDetails('edge', evt.target.data());
+        });
+
         cy.ready(() => {
           cy.resize();
           cy.fit(undefined, 30);
@@ -3115,6 +3581,58 @@
         isSvgGraphActive = true;
         renderInteractiveSvgNodeEdgeGraph(elements, pivotAcc);
       }
+    }
+
+    // Interactive Graph Element Popover
+    function showGraphElementDetails(type, data) {
+      const popover = document.getElementById('graph-element-popover');
+      const content = document.getElementById('graph-popover-content');
+      if (!popover || !content) return;
+
+      if (type === 'node') {
+        const accId = data.id || data.label;
+        const isTarget = data.isPivot || (currentAccountData && accId === currentAccountData.account_id);
+        const roleText = isTarget ? '🎯 Target Account' : (data.role === 'source' ? '📥 Inflow Counterparty' : '📤 Outflow Counterparty');
+        const bank = accId.substring(0, 4);
+
+        content.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid var(--card-border); padding-bottom:6px;">
+            <span style="font-weight:700; color:#fff; font-size:12px;">${roleText}</span>
+            <button onclick="closeGraphPopover()" style="background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:14px;">✕</button>
+          </div>
+          <div style="font-family:var(--font-mono); font-size:12px; color:var(--accent-cyan); font-weight:700; margin-bottom:4px;">${accId}</div>
+          <div style="color:var(--text-muted); font-size:11px; margin-bottom:8px;">Bank Code: <strong>${bank}</strong></div>
+          ${data.total_amount ? `<div style="font-size:11px; margin-bottom:4px;">Total Flow: <strong>₹${Number(data.total_amount).toLocaleString('en-IN')}</strong> (${data.transaction_count || 1} txns)</div>` : ''}
+          <div style="display:flex; gap:6px; margin-top:8px;">
+            ${!isTarget ? `<button class="btn" style="background:#0284c7; padding:4px 10px; font-size:11px;" onclick="searchAccount('${accId}'); closeGraphPopover();">🔍 Investigate Account</button>` : '<span style="font-size:10px; color:var(--text-dim);">Active Target Under Investigation</span>'}
+          </div>
+        `;
+      } else if (type === 'edge') {
+        content.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid var(--card-border); padding-bottom:6px;">
+            <span style="font-weight:700; color:#fff; font-size:12px;">➡️ Directed Transaction Flow</span>
+            <button onclick="closeGraphPopover()" style="background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:14px;">✕</button>
+          </div>
+          <div style="font-family:var(--font-mono); font-size:11px; color:#cbd5e1; margin-bottom:4px;">
+            <strong>${data.source}</strong> ➔ <strong>${data.target}</strong>
+          </div>
+          <div style="font-size:12px; color:#38bdf8; font-weight:700; margin-bottom:4px;">
+            Amount: ${data.amount || data.label || 'N/A'}
+          </div>
+          ${data.row_id ? `<div style="font-family:var(--font-mono); font-size:10px; color:var(--text-dim); margin-bottom:4px;">Row ID: <strong>${data.row_id}</strong></div>` : ''}
+          ${data.timestamp ? `<div style="font-family:var(--font-mono); font-size:10px; color:var(--text-dim); margin-bottom:8px;">Timestamp: ${data.timestamp}</div>` : ''}
+          <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
+            ${data.row_id ? `<button class="btn btn-secondary" style="padding:4px 8px; font-size:10px; border-color:#38bdf8; color:#38bdf8;" onclick="loadTraceForTxn(${data.row_id}); closeGraphPopover();">🔄 Trace Flow</button>` : ''}
+            ${data.row_id ? `<button class="btn btn-secondary" style="padding:4px 8px; font-size:10px;" onclick="auditSingleTxn(${data.row_id})">📋 Audit Row</button>` : ''}
+          </div>
+        `;
+      }
+      popover.style.display = 'block';
+    }
+
+    function closeGraphPopover() {
+      const popover = document.getElementById('graph-element-popover');
+      if (popover) popover.style.display = 'none';
     }
 
     // Native Vector SVG Nodes & Edges Graph Renderer
@@ -3161,7 +3679,7 @@
         nodePos[n.id] = { x: 700, y: y, type: 'sink' };
       });
 
-      // Build SVG Edges (Directed connecting lines with amount badges)
+      // Build SVG Edges
       const edgesSvg = edges.map(e => {
         const from = nodePos[e.source] || { x: 140, y: H / 2 };
         const to = nodePos[e.target] || { x: 700, y: H / 2 };
@@ -3178,7 +3696,7 @@
         const midY = (startY + endY) / 2;
 
         return `
-          <g class="svg-graph-edge">
+          <g class="svg-graph-edge" style="cursor: pointer;" onclick="showGraphElementDetails('edge', { source: '${e.source}', target: '${e.target}', amount: '${e.amount || ''}', label: '${e.label || ''}', row_id: '${e.row_id || ''}', timestamp: '${e.timestamp || ''}' })">
             <!-- Glow background edge -->
             <path d="${pathD}" stroke="#0369a1" stroke-width="4" fill="none" opacity="0.4"/>
             <!-- Main directed flow line -->
@@ -3205,7 +3723,7 @@
 
         if (isMule) {
           return `
-            <g class="svg-graph-node" transform="translate(${pos.x}, ${pos.y})" onclick="searchAccount('${id}')" style="cursor: pointer;">
+            <g class="svg-graph-node" transform="translate(${pos.x}, ${pos.y})" onclick="showGraphElementDetails('node', { id: '${id}', label: '${id}', role: 'mule', isPivot: true })" style="cursor: pointer;">
               <!-- Outer glowing aura -->
               <rect x="-82" y="-28" width="164" height="56" rx="28" fill="rgba(239, 68, 68, 0.12)" stroke="#ef4444" stroke-width="2" stroke-dasharray="5, 3">
                 <animate attributeName="stroke-dashoffset" from="0" to="16" dur="2s" repeatCount="indefinite"/>
@@ -3213,7 +3731,7 @@
               <!-- Core Node Body -->
               <rect x="-76" y="-24" width="152" height="48" rx="24" fill="#1e1320" stroke="#ef4444" stroke-width="2.5"/>
               <!-- Node Icon & Label -->
-              <text x="0" y="-7" fill="#f87171" font-size="9" font-family="monospace" text-anchor="middle" font-weight="800">🎯 MULE ACCOUNT</text>
+              <text x="0" y="-7" fill="#f87171" font-size="9" font-family="monospace" text-anchor="middle" font-weight="800">🎯 TARGET ACCOUNT</text>
               <text x="0" y="11" fill="#ffffff" font-size="12" font-family="monospace" text-anchor="middle" font-weight="700">${id}</text>
               <text x="0" y="21" fill="#fbbf24" font-size="8" font-family="monospace" text-anchor="middle">${bankPrefix} • Monitored Target</text>
             </g>
@@ -3226,7 +3744,7 @@
         const roleText = isSrc ? '📥 INFLOW SOURCE' : '📤 DISPERSAL SINK';
 
         return `
-          <g class="svg-graph-node" transform="translate(${pos.x}, ${pos.y})" onclick="searchAccount('${id}')" style="cursor: pointer;">
+          <g class="svg-graph-node" transform="translate(${pos.x}, ${pos.y})" onclick="showGraphElementDetails('node', { id: '${id}', label: '${id}', role: '${pos.type}', isPivot: false })" style="cursor: pointer;">
             <rect x="-68" y="-21" width="136" height="42" rx="21" fill="${bgCol}" stroke="${borderCol}" stroke-width="2"/>
             <text x="0" y="-5" fill="${tagCol}" font-size="8.5" font-family="monospace" text-anchor="middle" font-weight="700">${roleText}</text>
             <text x="0" y="10" fill="#f8fafc" font-size="11" font-family="monospace" text-anchor="middle" font-weight="600">${id}</text>
@@ -3249,6 +3767,168 @@
           </g>
         </svg>
       `;
+    }
+
+    // Evidence Records Modal Functions (Upgrade 2)
+    function openEvidenceModal(filterIndicator = 'all') {
+      if (!currentAccountData) return;
+      const modal = document.getElementById('evidence-modal');
+      if (!modal) return;
+
+      const accId = currentAccountData.account_id;
+      const badgeEl = document.getElementById('evidence-modal-acc-badge');
+      if (badgeEl) badgeEl.innerText = accId;
+
+      const evObj = currentAccountData.evidence_by_indicator || (currentExplainData && currentExplainData.context && currentExplainData.context.evidence_by_indicator) || {};
+      currentEvidenceRecords = [];
+
+      const indSelect = document.getElementById('evidence-modal-filter-indicator');
+      if (indSelect) {
+        indSelect.innerHTML = '<option value="all">All Indicators</option>';
+      }
+
+      for (const [indName, evVal] of Object.entries(evObj)) {
+        if (indSelect) {
+          const opt = document.createElement('option');
+          opt.value = indName;
+          const matchItem = (currentAccountData.matched_indicators || []).find(m => m.indicator === indName);
+          const pts = matchItem ? matchItem.contribution : 0;
+          opt.innerText = `${indName} (+${pts} pts)`;
+          indSelect.appendChild(opt);
+        }
+
+        const txns = Array.isArray(evVal) ? evVal : ((evVal && Array.isArray(evVal.transactions)) ? evVal.transactions : []);
+        txns.forEach(tx => {
+          currentEvidenceRecords.push({
+            indicator: indName,
+            row_id: tx.row_id,
+            transaction_id: tx.transaction_id || `TXN${tx.row_id}`,
+            sender: tx.sender,
+            receiver: tx.receiver,
+            amount: tx.amount,
+            timestamp: tx.timestamp,
+            reason: tx.reason || (evVal && evVal.summary) || 'Measured envelope match'
+          });
+        });
+      }
+
+      if (indSelect && filterIndicator !== 'all') {
+        indSelect.value = filterIndicator;
+      }
+      const searchInput = document.getElementById('evidence-modal-search');
+      if (searchInput) searchInput.value = '';
+
+      filterEvidenceModalRecords();
+      modal.style.display = 'flex';
+    }
+
+    function filterEvidenceModalRecords() {
+      const indSelect = document.getElementById('evidence-modal-filter-indicator');
+      const searchInput = document.getElementById('evidence-modal-search');
+      const selectedInd = indSelect ? indSelect.value : 'all';
+      const searchTerm = (searchInput ? searchInput.value : '').trim().toLowerCase();
+
+      const filtered = currentEvidenceRecords.filter(rec => {
+        const matchInd = selectedInd === 'all' || rec.indicator === selectedInd;
+        if (!matchInd) return false;
+        if (!searchTerm) return true;
+        return (
+          String(rec.row_id).includes(searchTerm) ||
+          String(rec.transaction_id).toLowerCase().includes(searchTerm) ||
+          String(rec.sender).toLowerCase().includes(searchTerm) ||
+          String(rec.receiver).toLowerCase().includes(searchTerm) ||
+          String(rec.amount).includes(searchTerm) ||
+          String(rec.indicator).toLowerCase().includes(searchTerm) ||
+          String(rec.reason).toLowerCase().includes(searchTerm)
+        );
+      });
+
+      const statsEl = document.getElementById('evidence-modal-stats');
+      if (statsEl) {
+        statsEl.innerText = `Showing ${filtered.length} of ${currentEvidenceRecords.length} records`;
+      }
+
+      const tbody = document.getElementById('evidence-modal-tbody');
+      if (!tbody) return;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px; color:var(--text-dim);">No evidence records match criteria.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(r => `
+        <tr>
+          <td>
+            <span class="tech-tag" style="background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.35); color: #fca5a5; font-size: 10px; padding: 2px 6px;">
+              ${r.indicator}
+            </span>
+          </td>
+          <td class="td-mono">${r.row_id}</td>
+          <td class="td-mono" style="font-size: 11px;">${r.transaction_id}</td>
+          <td class="td-mono">${r.sender}</td>
+          <td class="td-mono">${r.receiver}</td>
+          <td class="td-amt">₹${Number(r.amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+          <td class="td-mono" style="font-size: 11px;">${r.timestamp}</td>
+          <td style="font-size: 11px; color: var(--text-muted); max-width: 200px;">${r.reason}</td>
+          <td style="text-align: center;">
+            <div style="display: flex; gap: 4px; justify-content: center;">
+              <button class="btn btn-secondary" style="padding: 2px 7px; font-size: 10px; border-color: var(--accent-cyan); color: var(--accent-cyan);" onclick="loadTraceForTxn(${r.row_id}); closeEvidenceModal();">Trace</button>
+              <button class="btn btn-secondary" style="padding: 2px 7px; font-size: 10px;" onclick="auditSingleTxn(${r.row_id})">Audit</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function closeEvidenceModal() {
+      const modal = document.getElementById('evidence-modal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    // Single Transaction Audit Lookup (GET /api/transaction/{row_id})
+    async function auditSingleTxn(rowId) {
+      showLoading(`Auditing Transaction Row #${rowId}...`);
+      try {
+        const resp = await fetch(`${API_BASE}/api/transaction/${rowId}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        hideLoading();
+
+        const txn = data.transaction || {};
+        const modal = document.getElementById('txn-audit-modal');
+        document.getElementById('txn-audit-row-badge').innerText = `Row #${rowId}`;
+        const content = document.getElementById('txn-audit-content');
+
+        content.innerHTML = `
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 11px; font-family: var(--font-mono);">
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Row ID: <strong>${txn.row_id ?? rowId}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Transaction ID: <strong>${txn.Transaction_ID || 'N/A'}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Sender Account: <strong>${txn.Sender_Account || 'N/A'}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Receiver Account: <strong>${txn.Receiver_Account || 'N/A'}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Sender IFSC: <strong>${txn.Sender_IFSC || 'N/A'}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Receiver IFSC: <strong>${txn.Receiver_IFSC || 'N/A'}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Amount: <strong style="color: #38bdf8;">₹${Number(txn.Amount || 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Payment Mode: <strong>${txn.Payment_Mode || 'N/A'}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px; grid-column: span 2;">Timestamp: <strong>${txn.Timestamp || 'N/A'}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px; grid-column: span 2;">Narration: <strong>${txn.Narration || 'N/A'}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">IP Address: <strong>${txn.IP_Address || 'N/A'}</strong></div>
+            <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Device Type: <strong>${txn.Device_Type || 'N/A'}</strong></div>
+          </div>
+          <div style="margin-top: 14px; display: flex; justify-content: flex-end; gap: 8px;">
+            <button class="btn btn-secondary" onclick="loadTraceForTxn(${rowId}); closeTxnAuditModal();" style="border-color: #38bdf8; color: #38bdf8; font-size: 11px;">🔄 Trace Flow</button>
+            <button class="btn btn-secondary" onclick="closeTxnAuditModal()" style="font-size: 11px;">Close</button>
+          </div>
+        `;
+        modal.style.display = 'flex';
+      } catch (err) {
+        hideLoading();
+        alert(`Could not fetch transaction audit record: ${err.message}`);
+      }
+    }
+
+    function closeTxnAuditModal() {
+      const modal = document.getElementById('txn-audit-modal');
+      if (modal) modal.style.display = 'none';
     }
 
     function renderFallbackSvgGraph(elements) {
@@ -3332,13 +4012,14 @@
     function populatePrintableReportTemplate(accId, detectData, explainData) {
       const ctx = explainData.context || {};
       const metrics = detectData.metrics || ctx.account_summary || {};
+      const matchedCount = (detectData.matched_indicators || []).length;
 
       document.getElementById('pdf-date').innerText = new Date().toISOString();
       document.getElementById('pdf-account-id').innerText = accId;
       document.getElementById('pdf-score').innerText = `${detectData.risk_score} / 100`;
       document.getElementById('pdf-score-summary').innerText = detectData.risk_score === 0 
-        ? 'Account evaluated with baseline distribution. No behavioral indicators matched.' 
-        : `Deterministic score derived from ${detectData.matched_indicators.length} matched pattern indicators.`;
+        ? 'Account evaluated with baseline distribution. Matches 0 measured indicators.' 
+        : `Deterministic score derived from ${matchedCount} matched pattern indicators. Matches ${matchedCount} measured indicators.`;
 
       // Indicators
       const indTbody = document.getElementById('pdf-indicators-tbody');
@@ -3366,9 +4047,10 @@
 
       const infraBox = document.getElementById('pdf-infra-box');
       if (infraBox) {
-        const ips = metrics.distinct_ips || 0;
-        const devices = metrics.distinct_devices || 0;
-        infraBox.innerHTML = `<strong>Digital Infrastructure:</strong> Distinct IPs: ${ips} | Distinct Devices: ${devices}`;
+        const ips = metrics.distinct_ips || (ctx.device_ip_summary && ctx.device_ip_summary.distinct_ips) || 0;
+        const devTypes = (ctx.device_ip_summary && ctx.device_ip_summary.outgoing_devices) || [];
+        const devices = devTypes.length || metrics.distinct_devices || 0;
+        infraBox.innerHTML = `<strong>Digital Infrastructure:</strong> Distinct IPs: ${ips} | Distinct Device Types: ${devices}`;
       }
 
       // Explanation
@@ -3438,6 +4120,7 @@
       const ctx = explainData.context || {};
       const metrics = detectData.metrics || ctx.account_summary || {};
       const score = detectData.risk_score;
+      const matchedCount = (detectData.matched_indicators || []).length;
 
       // Header Banner
       doc.setFillColor(15, 23, 42); // #0f172a
@@ -3446,12 +4129,12 @@
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(13);
-      doc.text('OPERATION ABHEDYA-CHAKRA — INDORE POLICE', 14, 11);
+      doc.text('OPERATION ABHEDYA-CHAKRA • PROTOTYPE', 14, 11);
 
       doc.setTextColor(56, 189, 248);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
-      doc.text('FINANCIAL FORENSIC ANALYSIS DIVISION • AUDITABLE BANKING EVIDENCE DOSSIER', 14, 18);
+      doc.text('FINANCIAL FORENSIC ANALYSIS DIVISION • AUDITABLE EVIDENCE DOSSIER', 14, 18);
 
       doc.setTextColor(203, 213, 225);
       doc.setFontSize(7.5);
@@ -3484,8 +4167,8 @@
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
       const scoreSummary = score === 0
-        ? 'Account evaluated with baseline distribution. Zero behavioral indicators matched.'
-        : `Deterministic risk score derived from ${(detectData.matched_indicators || []).length} matched behavioral pattern indicators.`;
+        ? 'Account evaluated with baseline distribution. Matches 0 measured indicators.'
+        : `Deterministic risk score derived from ${matchedCount} matched pattern indicators. Matches ${matchedCount} measured indicators.`;
       doc.text(doc.splitTextToSize(scoreSummary, 130), 60, curY + 14);
 
       curY += 27;
@@ -3532,14 +4215,15 @@
       const inAmt = metrics.in_amount || metrics.total_incoming_amount || 0;
       const outAmt = metrics.out_amount || metrics.total_outgoing_amount || 0;
       const ratioStr = metrics.out_in_ratio !== null ? Number(metrics.out_in_ratio).toFixed(4) : 'N/A';
-      const ips = metrics.distinct_ips || 0;
-      const devs = metrics.distinct_devices || 0;
+      const ips = metrics.distinct_ips || (ctx.device_ip_summary && ctx.device_ip_summary.distinct_ips) || 0;
+      const devTypes = (ctx.device_ip_summary && ctx.device_ip_summary.outgoing_devices) || [];
+      const devs = devTypes.length || metrics.distinct_devices || 0;
 
       const metRows = [
         ['In-Degree (Depositors)', String(metrics.in_degree || 0), 'Out-Degree (Beneficiaries)', String(metrics.out_degree || 0)],
         ['Total Inflow', `INR ${Number(inAmt).toLocaleString('en-IN')}`, 'Total Outflow', `INR ${Number(outAmt).toLocaleString('en-IN')}`],
         ['Out / In Ratio', ratioStr, 'Largest Inflow', `INR ${Number(metrics.largest_in_amount || 0).toLocaleString('en-IN')}`],
-        ['Distinct IPs Associated', String(ips), 'Distinct Device IDs', String(devs)]
+        ['Distinct IPs Associated', String(ips), 'Distinct Device Types', String(devs)]
       ];
 
       if (typeof doc.autoTable === 'function') {
@@ -3659,11 +4343,11 @@
         curY = 20;
       }
 
-      // Statutory Limitations
+      // Limitations of This Analysis
       doc.setTextColor(100, 116, 139);
       doc.setFont('helvetica', 'italic');
       doc.setFontSize(7);
-      doc.text('STATUTORY LIMITATIONS: No ground-truth labels exist in dataset; all findings represent observed behavioral patterns only.', 14, curY);
+      doc.text('LIMITATIONS OF THIS ANALYSIS: No ground-truth labels exist in dataset; all findings represent observed behavioral patterns only.', 14, curY);
       doc.text('Possible flow is not physical funds movement. All cutoffs represent documented auditable design choices.', 14, curY + 3.5);
 
       curY += 10;
@@ -3675,11 +4359,11 @@
       doc.setFontSize(7.5);
       doc.setTextColor(71, 85, 105);
       doc.text('INVESTIGATING OFFICER: _________________________', 14, curY);
-      doc.text('CYBER & FINANCIAL CRIME DIVISION', 130, curY);
+      doc.text('FINANCIAL FORENSIC INVESTIGATION DIVISION', 130, curY);
 
       doc.setFont('helvetica', 'normal');
       doc.text('OFFICER BADGE ID:     _________________________', 14, curY + 4.5);
-      doc.text('INDORE POLICE HEADQUARTERS (AUDIT VERIFIED)', 130, curY + 4.5);
+      doc.text('CASE EVIDENCE DOSSIER • PROTOTYPE', 130, curY + 4.5);
 
       doc.save(`Abhedya_Chakra_Dossier_${accId}.pdf`);
       return true;

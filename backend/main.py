@@ -392,6 +392,23 @@ def compute_case_overview() -> Dict[str, Any]:
             retained = max(0.0, in_val - out_val)
             retained_pct = round((retained / in_val * 100), 2) if in_val > 0 else 0.0
 
+            pt_bool = bool(pt)
+            fo_bool = bool(fo)
+            fpt_bool = bool(fpt)
+            rare_bool = bool(rare)
+            sink_bool = bool(sink)
+
+            # Detailed Selection Parameters Breakdown
+            param_items = []
+            if pt_bool: param_items.append("Pass-Through 98% (+30 pts)")
+            if fpt_bool: param_items.append("Velocity <15m (+20 pts)")
+            if fo_bool: param_items.append("Dispersal Fan-Out (+20 pts)")
+            if rare_bool: param_items.append("Rare Script/Emulator Infra (+30 pts)")
+            if sink_bool: param_items.append("Terminal Cash-Out Sink (+40 pts)")
+
+            selection_summary = " | ".join(param_items) if param_items else "Behavioral Baseline"
+            selection_rule = f"Flagged Mule (Deterministic Risk Score = {int(score)} >= 30)"
+
             if score == 100:
                 mule_role = "Layer 1 Transit Core"
                 role_type = "layer_1"
@@ -428,6 +445,14 @@ def compute_case_overview() -> Dict[str, Any]:
                 "mule_role": mule_role,
                 "role_type": role_type,
                 "evidence_desc": evidence_desc,
+                "selection_rule": selection_rule,
+                "selection_parameters_summary": selection_summary,
+                "selection_parameters_list": param_items,
+                "param_pass_through": "MATCH (+30 pts)" if pt_bool else "NO MATCH (0 pts)",
+                "param_velocity": "MATCH (+20 pts)" if fpt_bool else "NO MATCH (0 pts)",
+                "param_fan_out": "MATCH (+20 pts)" if fo_bool else "NO MATCH (0 pts)",
+                "param_rare_infra": "MATCH (+30 pts)" if rare_bool else "NO MATCH (0 pts)",
+                "param_terminal_sink": "MATCH (+40 pts)" if sink_bool else "NO MATCH (0 pts)",
                 "in_degree": int(in_deg),
                 "out_degree": int(out_deg),
                 "total_incoming_inr": in_val,
@@ -464,6 +489,14 @@ def compute_case_overview() -> Dict[str, Any]:
                 "mule_role": "Clean Normal Baseline Account",
                 "role_type": "clean",
                 "evidence_desc": "Conforms to standard operating baselines. Zero behavioral indicators matched.",
+                "selection_rule": "Clean Baseline (Deterministic Risk Score = 0 < 30)",
+                "selection_parameters_summary": "Zero Behavioral Indicators Matched (Baseline Normal Account)",
+                "selection_parameters_list": ["Clean Baseline Activity (0 pts)"],
+                "param_pass_through": "NO MATCH (0 pts)",
+                "param_velocity": "NO MATCH (0 pts)",
+                "param_fan_out": "NO MATCH (0 pts)",
+                "param_rare_infra": "NO MATCH (0 pts)",
+                "param_terminal_sink": "NO MATCH (0 pts)",
                 "in_degree": int(in_deg),
                 "out_degree": int(out_deg),
                 "total_incoming_inr": float(in_amt or 0.0),
@@ -584,13 +617,21 @@ def export_master_ledger(
         "Rank",
         "Account_ID",
         "Bank_Name",
-        "Is_Mule_Account",              # Explicitly YES or NO!
-        "Mule_Classification_Role",     # Layer 1 Transit, Terminal Sink, etc. or Clean Normal Baseline
-        "Deterministic_Risk_Score",     # 100, 50, 40, 30, 0
-        "Forensic_Evidence_Summary",    # Pattern description or Baseline explanation
+        "Is_Mule_Account",                  # Explicitly YES or NO!
+        "Mule_Classification_Role",         # Layer 1 Transit, Terminal Sink, etc. or Clean Normal Baseline
+        "Deterministic_Risk_Score",         # 100, 50, 40, 30, 0
+        "Selection_Decision_Rule",          # Flagged Mule (Score >= 30) vs Clean Baseline (Score == 0)
+        "Selection_Parameters_Summary",     # Concise summary of all matched parameters
+        "Param_Pass_Through_98pct",         # MATCH (+30 pts) vs NO MATCH (0 pts)
+        "Param_Velocity_Under_15m",         # MATCH (+20 pts) vs NO MATCH (0 pts)
+        "Param_Dispersal_Fan_Out",          # MATCH (+20 pts) vs NO MATCH (0 pts)
+        "Param_Rare_Infrastructure",        # MATCH (+30 pts) vs NO MATCH (0 pts)
+        "Param_Terminal_Accumulation_Sink", # MATCH (+40 pts) vs NO MATCH (0 pts)
+        "Forensic_Evidence_Summary",        # Pattern description or Baseline explanation
         "Total_Incoming_INR",
         "Total_Outgoing_INR",
         "Retained_INR",
+        "Retained_Pct",
         "In_Degree",
         "Out_Degree",
         "Matched_Indicators"
@@ -607,10 +648,18 @@ def export_master_ledger(
             is_mule_text,
             acc.get("mule_role", "Mule Node" if is_mule else "Clean Baseline"),
             acc["risk_score"],
+            acc.get("selection_rule", f"Score = {acc['risk_score']}"),
+            acc.get("selection_parameters_summary", "Zero Indicators"),
+            acc.get("param_pass_through", "NO MATCH (0 pts)"),
+            acc.get("param_velocity", "NO MATCH (0 pts)"),
+            acc.get("param_fan_out", "NO MATCH (0 pts)"),
+            acc.get("param_rare_infra", "NO MATCH (0 pts)"),
+            acc.get("param_terminal_sink", "NO MATCH (0 pts)"),
             acc.get("evidence_desc", ""),
             f"{acc['total_incoming_inr']:.2f}",
             f"{acc['total_outgoing_inr']:.2f}",
             f"{acc.get('retained_inr', 0.0):.2f}",
+            f"{acc.get('retained_pct', 0.0):.1f}%",
             acc["in_degree"],
             acc["out_degree"],
             "; ".join(acc.get("matched_indicator_names", []))

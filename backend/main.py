@@ -478,6 +478,11 @@ def compute_case_overview() -> Dict[str, Any]:
             acc, score, in_deg, out_deg, in_amt, out_amt = r
             bank_prefix = acc[:4]
             bank_name = BANK_NAMES.get(bank_prefix, bank_prefix)
+            clean_in = float(in_amt or 0.0)
+            clean_out = float(out_amt or 0.0)
+            clean_retained = max(0.0, clean_in - clean_out)
+            clean_retained_pct = round((clean_retained / clean_in * 100), 2) if clean_in > 0 else 0.0
+
             clean_accounts.append({
                 "rank": len(ranked_accounts) + rank_offset,
                 "account_id": acc,
@@ -499,10 +504,10 @@ def compute_case_overview() -> Dict[str, Any]:
                 "param_terminal_sink": "NO MATCH (0 pts)",
                 "in_degree": int(in_deg),
                 "out_degree": int(out_deg),
-                "total_incoming_inr": float(in_amt or 0.0),
-                "total_outgoing_inr": float(out_amt or 0.0),
-                "retained_inr": max(0.0, float(in_amt or 0.0) - float(out_amt or 0.0)),
-                "retained_pct": 0.0,
+                "total_incoming_inr": clean_in,
+                "total_outgoing_inr": clean_out,
+                "retained_inr": round(clean_retained, 2),
+                "retained_pct": clean_retained_pct,
                 "matched_indicator_names": []
             })
 

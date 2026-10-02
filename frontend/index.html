@@ -870,6 +870,9 @@
       <button class="btn btn-secondary" id="btn-pdf-export" onclick="exportPdfReport()" style="display: none;">
         <span>📄 Generate PDF Report</span>
       </button>
+      <button class="btn" id="btn-section91-notice" onclick="openSection91Notice()" style="display: none; background: #b45309;">
+        <span>📋 Generate Section 91 Notice</span>
+      </button>
     </div>
   </header>
 
@@ -895,6 +898,10 @@
         <p class="hero-desc">
           Auditable forensic pattern detection on large-scale banking ledgers. Identifies rapid pass-through transit accounts, synthetic structuring envelopes, fan-out dispersal topologies, and infrastructure correlation.
         </p>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin: 0 0 18px 0;">
+          <button class="btn" style="background:#0284c7;" onclick="startDemoMode()">▶ Start Judge Demo</button>
+          <button class="btn btn-secondary" onclick="searchAccount('ICIC10014001')">Compare Clean Account (0)</button>
+        </div>
         <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Quick Investigation Samples by Risk Tier</div>
         <div class="quick-chips" id="quick-samples-chips">
           <span class="chip" style="border-color: #ef4444; color: #f87171;" onclick="searchAccount('AIRP10000312')">AIRP10000312 (High • 100)</span>
@@ -915,9 +922,9 @@
           </div>
           <div style="display: flex; gap: 6px; align-items: center;">
             <span style="font-size: 11px; color: var(--text-dim); margin-right: 4px;">Filter Score:</span>
-            <button class="btn btn-secondary" id="fl-btn-all" style="padding: 3px 9px; font-size: 11px;" onclick="setFlaggedFilter(30)">Score ≥ 30</button>
-            <button class="btn btn-secondary" id="fl-btn-40" style="padding: 3px 9px; font-size: 11px;" onclick="setFlaggedFilter(40)">Score ≥ 40</button>
-            <button class="btn btn-secondary" id="fl-btn-100" style="padding: 3px 9px; font-size: 11px; background: rgba(239,68,68,0.2); border-color: #ef4444; color: #fff;" onclick="setFlaggedFilter(100)">Score 100 Only</button>
+            <button class="btn btn-secondary" id="fl-btn-all" style="padding: 3px 9px; font-size: 11px;" onclick="setFlaggedFilter('mid')">Score 40–99</button>
+            <button class="btn btn-secondary" id="fl-btn-40" style="padding: 3px 9px; font-size: 11px; display: none;" aria-hidden="true"></button>
+            <button class="btn btn-secondary" id="fl-btn-100" style="padding: 3px 9px; font-size: 11px; background: rgba(239,68,68,0.2); border-color: #ef4444; color: #fff;" onclick="setFlaggedFilter('high')">Score 100</button>
           </div>
         </div>
         <div class="panel-body" style="padding: 0;">
@@ -952,6 +959,7 @@
         <div style="display: flex; gap: 10px;">
           <button class="btn btn-secondary" onclick="showLandingView()">← Back to Flagged Accounts</button>
           <button class="btn" id="btn-main-pdf-dl" style="background: #0284c7;" onclick="exportPdfReport()">📄 Download PDF Report</button>
+          <button class="btn" style="background: #b45309;" onclick="openSection91Notice()">📋 Generate Section 91 Notice</button>
           <button class="btn btn-secondary" onclick="openDossierModal()">🖨️ Print / Preview</button>
         </div>
       </div>
@@ -967,6 +975,14 @@
             <div class="score-caption">Deterministic Risk Score</div>
             <div id="score-val" class="score-num score-high">100 / 100</div>
             <div id="score-status-text" class="score-subtext">All 4 Behavioral Pattern Indicators Matched</div>
+          </div>
+
+          <div class="panel" style="margin-bottom: 16px; border-color: rgba(56,189,248,.35);">
+            <div class="panel-header">
+              <div class="panel-title">Why This Account Was Flagged</div>
+              <span id="why-flagged-evidence-count" style="font-family:var(--font-mono); font-size:11px; color:var(--accent-cyan);">0 evidence rows</span>
+            </div>
+            <div class="panel-body" id="why-flagged-summary" style="font-size:12px; line-height:1.6; color:var(--text-muted);"></div>
           </div>
 
           <!-- Indicators Panel -->
@@ -1171,6 +1187,26 @@
 
   </main>
 
+  <!-- Section 91 CrPC / Section 106 BNSS Notice Preview -->
+  <div id="section91-modal" class="dossier-modal-backdrop" style="display: none;">
+    <div class="dossier-modal-container" style="max-width: 900px;">
+      <div class="dossier-modal-header">
+        <div>
+          <div style="font-weight: 700; color: #fff; font-size: 14px;">📋 Section 91 CrPC / Section 106 BNSS Notice</div>
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Draft for investigating-officer review — Operation Abhedya-Chakra</div>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button class="btn" onclick="copySection91Notice()" style="background: #0284c7;">📋 Copy Notice</button>
+          <button class="btn btn-secondary" onclick="printSection91Notice()">🖨️ Print Notice</button>
+          <button class="btn btn-secondary" onclick="closeSection91Notice()">✕ Close</button>
+        </div>
+      </div>
+      <div class="dossier-modal-body">
+        <article id="section91-notice-content" class="dossier-sheet" style="max-width: 760px; white-space: pre-wrap; font-family: Georgia, 'Times New Roman', serif; font-size: 13px; line-height: 1.6;"></article>
+      </div>
+    </div>
+  </div>
+
   <!-- PDF Dossier Preview & Export Modal -->
   <div id="dossier-modal" class="dossier-modal-backdrop">
     <div class="dossier-modal-container">
@@ -1350,10 +1386,10 @@
     }
 
     // Score Filter and Loader for Flagged Ledger
-    let currentFlaggedFilter = 100;
+    let currentFlaggedFilter = 'high';
 
-    function setFlaggedFilter(minScore) {
-      currentFlaggedFilter = minScore;
+    function setFlaggedFilter(tier) {
+      currentFlaggedFilter = tier;
       ['fl-btn-all', 'fl-btn-40', 'fl-btn-100'].forEach(id => {
         const b = document.getElementById(id);
         if (b) {
@@ -1362,38 +1398,54 @@
           b.style.color = 'var(--text-main)';
         }
       });
-      const activeId = minScore === 30 ? 'fl-btn-all' : (minScore === 40 ? 'fl-btn-40' : 'fl-btn-100');
+      const activeId = tier === 'mid' ? 'fl-btn-all' : 'fl-btn-100';
       const activeBtn = document.getElementById(activeId);
       if (activeBtn) {
         activeBtn.style.background = 'rgba(56, 189, 248, 0.2)';
         activeBtn.style.borderColor = 'var(--accent-cyan)';
         activeBtn.style.color = '#fff';
       }
-      loadFlaggedAccounts(minScore);
+      loadFlaggedAccounts(tier);
     }
 
-    async function loadFlaggedAccounts(minScore = 100) {
+    async function loadFlaggedAccounts(tier = 'high') {
       try {
-        const resp = await fetch(`${API_BASE}/api/flagged?min_score=${minScore}&limit=35`);
+        // The API sorts scores descending. Fetch enough existing rows to select
+        // the requested band client-side, otherwise the 100-score accounts hide
+        // every lower tier in the first 35 rows.
+        const minimumScore = tier === 'high' ? 100 : 40;
+        const resp = await fetch(`${API_BASE}/api/flagged?min_score=${minimumScore}&limit=500`);
         if (!resp.ok) throw new Error('Failed to load flagged accounts');
         const data = await resp.json();
+        const bandLabel = tier === 'high' ? '100' : '40–99';
+        const tierAccounts = (data.accounts || []).filter(acc => {
+          const score = Number(acc.risk_score);
+          return tier === 'high' ? score === 100 : score >= 40 && score < 100;
+        });
 
-        document.getElementById('flagged-count-badge').innerText = `${data.total_matching} Accounts (Score ≥ ${minScore})`;
+        document.getElementById('flagged-count-badge').innerText = `${tierAccounts.length} Accounts (Score ${bandLabel})`;
         const tbody = document.getElementById('flagged-tbody');
         tbody.innerHTML = '';
 
-        if (!data.accounts || data.accounts.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No accounts found matching this score threshold.</td></tr>';
+        if (tierAccounts.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No accounts found in this score tier.</td></tr>';
           return;
         }
 
-        data.accounts.forEach(acc => {
+        tierAccounts.slice(0, 35).forEach(acc => {
           const tr = document.createElement('tr');
           const s = acc.risk_score;
           const scoreColor = s >= 100 ? '#ef4444' : (s >= 50 ? '#f97316' : (s >= 40 ? '#f59e0b' : (s >= 30 ? '#eab308' : '#38bdf8')));
           const badgeBg = s >= 100 ? 'rgba(239, 68, 68, 0.15)' : (s >= 50 ? 'rgba(249, 115, 22, 0.15)' : (s >= 40 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(234, 179, 8, 0.15)'));
 
-          const indicatorsHtml = (acc.matched_indicator_names || []).map(name => 
+          const indicatorNames = acc.matched_indicator_names || [
+            acc.ind_pt ? 'pass_through' : null,
+            acc.ind_fo ? 'fan_out' : null,
+            acc.ind_fpt ? 'fast_pass_through' : null,
+            acc.ind_rare ? 'rare_infrastructure' : null,
+            acc.ind_sink ? 'sink' : null
+          ].filter(Boolean);
+          const indicatorsHtml = indicatorNames.map(name =>
             `<span class="tech-tag" style="background: ${badgeBg}; border-color: ${scoreColor}; color: ${scoreColor};">${name}</span>`
           ).join(' ');
 
@@ -1411,6 +1463,11 @@
     }
 
     // Search Trigger
+    function startDemoMode() {
+      // Stable, verified reference account for the live judge walkthrough.
+      searchAccount('SBIN10000435');
+    }
+
     function performSearch() {
       const accId = document.getElementById('acc-search-input').value.trim();
       if (!accId) return;
@@ -1456,6 +1513,7 @@
       document.getElementById('error-view').style.display = 'none';
       document.getElementById('investigation-view').style.display = 'block';
       document.getElementById('btn-pdf-export').style.display = 'inline-flex';
+      document.getElementById('btn-section91-notice').style.display = 'inline-flex';
 
       const ctx = explainData.context || {};
       const metrics = detectData.metrics || ctx.account_summary || {};
@@ -1477,10 +1535,23 @@
         document.getElementById('score-status-text').innerText = 'No Indicators Matched (Baseline)';
       }
 
+      // Compact, evidence-grounded summary for a fast live demonstration.
+      const matched = detectData.matched_indicators || [];
+      const evidenceCount = (detectData.evidence || []).length;
+      const whySummary = document.getElementById('why-flagged-summary');
+      const whyEvidenceCount = document.getElementById('why-flagged-evidence-count');
+      whyEvidenceCount.innerText = `${evidenceCount} evidence rows`;
+      if (matched.length === 0) {
+        whySummary.innerText = 'No indicators matched. This account remains at the baseline deterministic score; the displayed transaction metrics and any observed paths are retained for investigator review.';
+      } else {
+        const indicators = matched.map(item => `${item.indicator} (+${item.contribution})`).join(', ');
+        const ratio = metrics.out_in_ratio !== null && metrics.out_in_ratio !== undefined ? Number(metrics.out_in_ratio).toFixed(4) : 'N/A';
+        whySummary.innerText = `Score ${score}/100 is derived from ${matched.length} configured indicator(s): ${indicators}. Flow summary: ${metrics.in_degree ?? 0} incoming and ${metrics.out_degree ?? 0} outgoing transactions; out/in ratio ${ratio}. Evidence and observed paths remain available below for review.`;
+      }
+
       // 2. Matched Indicators List
       const indListEl = document.getElementById('indicator-list-container');
       indListEl.innerHTML = '';
-      const matched = detectData.matched_indicators || [];
       document.getElementById('matched-ind-cnt').innerText = `${matched.length} Active`;
 
       if (matched.length === 0) {
@@ -1861,6 +1932,7 @@
       document.getElementById('error-view').style.display = 'none';
       document.getElementById('landing-view').style.display = 'block';
       document.getElementById('btn-pdf-export').style.display = 'none';
+      document.getElementById('btn-section91-notice').style.display = 'none';
     }
 
     function showErrorView(title, desc) {
@@ -1870,6 +1942,73 @@
       document.getElementById('error-title').innerText = title;
       document.getElementById('error-desc').innerText = desc;
       document.getElementById('btn-pdf-export').style.display = 'none';
+      document.getElementById('btn-section91-notice').style.display = 'none';
+    }
+
+    function noticeTextForCurrentAccount() {
+      const detectData = currentAccountData;
+      const explainData = currentExplainData;
+      if (!detectData || !explainData) return '';
+
+      const ctx = explainData.context || {};
+      const metrics = detectData.metrics || ctx.account_summary || {};
+      const score = detectData.risk_score;
+      const indicators = detectData.matched_indicators || [];
+      const evidenceGroups = detectData.evidence_by_indicator || {};
+      const evidence = Object.values(evidenceGroups)
+        .flatMap(group => group.transactions || [])
+        .slice(0, 5);
+      const paths = (ctx.observed_paths || []).slice(0, 3);
+      const accountId = detectData.account_id;
+      const indicatorSummary = indicators.length
+        ? indicators.map(item => `${item.indicator} (+${item.contribution} points)`).join(', ')
+        : 'No indicators matched.';
+
+      const evidenceLines = evidence.length
+        ? evidence.map(item => `Row ${item.row_id}: ${item.sender} to ${item.receiver}; INR ${Number(item.amount || 0).toLocaleString('en-IN')}; ${item.timestamp}; ${item.reason}`).join('\n')
+        : 'No matched transaction evidence records were generated for this account.';
+      const pathLines = paths.length
+        ? paths.map(path => `Observed path: ${path.source_account} -> ${path.pivot_account} -> ${path.destination_account}; rows ${path.in_row_id} -> ${path.out_row_id}; INR ${Number(path.in_amount || 0).toLocaleString('en-IN')} -> INR ${Number(path.out_amount || 0).toLocaleString('en-IN')}; gap ${path.time_gap_seconds}s.`).join('\n')
+        : 'No observed chronological paths were recorded.';
+
+      return `OFFICE OF THE COMMISSIONER OF POLICE\nCYBER & FINANCIAL CRIME DIVISION, INDORE\n\nDRAFT NOTICE UNDER SECTION 91 CrPC / SECTION 106 BNSS\n\nTo,\nThe Nodal Officer\nConcerned Banking Institution\n\nSubject: Request for preservation and debit-freeze review — Account ${accountId}\n\nReference: Operation Abhedya-Chakra deterministic forensic review\n\nSir/Madam,\n\nThis draft is prepared for investigating-officer review in connection with a measured transaction-pattern analysis. The account under inquiry is ${accountId}. The deterministic risk score is ${score}/100. This score records observed configured pattern matches and is not a finding of guilt or intent.\n\nACCOUNT FLOW SUMMARY\nIncoming transactions: ${metrics.in_degree || 0}; total incoming amount: INR ${Number(metrics.in_amount || metrics.total_incoming_amount || 0).toLocaleString('en-IN')}.\nOutgoing transactions: ${metrics.out_degree || 0}; total outgoing amount: INR ${Number(metrics.out_amount || metrics.total_outgoing_amount || 0).toLocaleString('en-IN')}.\nOut/in ratio: ${metrics.out_in_ratio ?? 'N/A'}.\n\nDETERMINISTIC INDICATORS\n${indicatorSummary}\n\nRELEVANT EVIDENCE RECORDS\n${evidenceLines}\n\nOBSERVED PATHS\n${pathLines}\n\nYou are requested to preserve the relevant account and transaction records and, subject to applicable law and authorised officer review, assess the appropriate debit-freeze and information-production action.\n\nSTATUTORY LIMITATIONS\nNo ground-truth labels exist in the dataset. The material records observed behavioural patterns only. Possible flow is not proven movement of physical funds. This draft must be reviewed, completed, and authorised by the competent investigating officer before issue.\n\nYours faithfully,\n\nInvestigating Officer: __________________________\nBadge / Officer ID: __________________________\nOperation Abhedya-Chakra — Indore Police`;
+    }
+
+    function openSection91Notice() {
+      const content = noticeTextForCurrentAccount();
+      if (!content) {
+        alert('Please select an account before generating a notice.');
+        return;
+      }
+      document.getElementById('section91-notice-content').innerText = content;
+      document.getElementById('section91-modal').style.display = 'flex';
+    }
+
+    function closeSection91Notice() {
+      document.getElementById('section91-modal').style.display = 'none';
+    }
+
+    async function copySection91Notice() {
+      const content = document.getElementById('section91-notice-content').innerText;
+      try {
+        await navigator.clipboard.writeText(content);
+        alert('Notice copied for officer review.');
+      } catch (err) {
+        alert('Copy unavailable in this browser. Please select and copy the notice text.');
+      }
+    }
+
+    function printSection91Notice() {
+      const content = document.getElementById('section91-notice-content').innerHTML;
+      const printWindow = window.open('', '_blank', 'width=860,height=900');
+      if (!printWindow) {
+        alert('Please allow pop-ups to print the notice.');
+        return;
+      }
+      printWindow.document.write(`<!doctype html><html><head><title>Section 91 Notice</title><style>body{font-family:Georgia,'Times New Roman',serif;line-height:1.6;margin:32px;color:#111}article{white-space:pre-wrap}</style></head><body><article>${content}</article></body></html>`);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
     }
 
     // Populate the Printable Dossier Template in DOM
@@ -1944,8 +2083,8 @@
         evTbody.innerHTML = '';
         const evObj = detectData.evidence_by_indicator || {};
         let evCount = 0;
-        for (const [indName, evList] of Object.entries(evObj)) {
-          (evList || []).slice(0, 5).forEach(row => {
+        for (const [indName, evGroup] of Object.entries(evObj)) {
+          (evGroup.transactions || []).slice(0, 5).forEach(row => {
             evCount++;
             evTbody.innerHTML += `
               <tr>
@@ -2167,8 +2306,8 @@
 
       const evRows = [];
       const evObj = detectData.evidence_by_indicator || {};
-      for (const [indName, evList] of Object.entries(evObj)) {
-        (evList || []).slice(0, 5).forEach(row => {
+      for (const [indName, evGroup] of Object.entries(evObj)) {
+        (evGroup.transactions || []).slice(0, 5).forEach(row => {
           evRows.push([
             String(row.row_id || 'N/A'),
             String(row.timestamp || 'N/A'),

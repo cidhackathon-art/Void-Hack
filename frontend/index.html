@@ -930,11 +930,13 @@
             <span>📋 Forensic Case Overview</span>
             <span class="badge" style="background: rgba(56, 189, 248, 0.15); color: var(--accent-cyan); font-family: var(--font-mono); padding: 2px 8px; border-radius: 12px; font-size: 11px;">Read-Only Multi-Layer Analysis</span>
           </div>
-          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-            <button class="btn" onclick="downloadMasterLedgerCSV()" style="background: linear-gradient(135deg, #0284c7, #0369a1); font-size: 11px; padding: 4px 12px; font-weight: 600; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3); border: none; cursor: pointer;">📥 Export All Accounts (CSV)</button>
-            <div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">
-              Deterministic Columnar Ledger Aggregation
-            </div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <button class="btn" onclick="downloadUnifiedMasterSheetCSV()" style="background: linear-gradient(135deg, #0284c7, #0369a1); font-size: 11px; padding: 4px 12px; font-weight: 600; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3); border: none; cursor: pointer;" title="Mules aur Clean accounts ek hi sheet mein, samne likha hua ki konsa account mule hai">
+              📥 Export Shareable Master Sheet (Mules vs Clean CSV)
+            </button>
+            <button class="btn btn-secondary" onclick="downloadMulesOnlyCSV()" style="padding: 4px 10px; font-size: 11px; border-color: #38bdf8; color: #38bdf8;" title="Sirf 1,393 Mule accounts download karne ke liye">
+              📥 Mules Only CSV
+            </button>
           </div>
         </div>
         <div class="panel-body" style="padding: 16px;">
@@ -1085,7 +1087,7 @@
                   <option value="1393">⚡ View All (1,393 Accounts)</option>
                 </select>
               </div>
-              <button class="btn btn-secondary" onclick="downloadMasterLedgerCSV()" style="padding: 4px 10px; font-size: 11px; border-color: #38bdf8; color: #38bdf8;">📥 CSV</button>
+              <button class="btn btn-secondary" onclick="downloadUnifiedMasterSheetCSV()" style="padding: 4px 10px; font-size: 11px; border-color: #38bdf8; color: #38bdf8;" title="Mules aur Clean accounts ek hi sheet mein">📥 Shareable CSV</button>
               <div id="overview-showing-text" style="font-size: 11px; font-family: var(--font-mono); color: var(--text-muted);">
                 showing 1 - 10 of 1,393 accounts
               </div>
@@ -1295,7 +1297,19 @@
               </div>
             </div>
             <div class="panel-body" style="display: flex; flex-direction: column;">
-              <div id="graph-card-wrapper" style="position: relative; width: 100%; height: 480px; background: #0d131f; border-radius: 6px; overflow: hidden; border: 1px solid var(--card-border); transition: all 0.3s ease;">
+              <!-- Node & Edge Graph Legend Bar -->
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(15, 23, 42, 0.7); border-radius: 6px 6px 0 0; border: 1px solid var(--card-border); border-bottom: none; font-size: 11px; flex-wrap: wrap; gap: 8px;">
+                <div id="graph-topology-stats" style="color: var(--accent-cyan); font-family: var(--font-mono); font-weight: 600;">
+                  🔵 Nodes & Edges Network Graph
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center; font-size: 10px;">
+                  <span style="display: flex; align-items: center; gap: 4px; color: #f87171;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444; display: inline-block;"></span> 🔴 Mule Node</span>
+                  <span style="display: flex; align-items: center; gap: 4px; color: #38bdf8;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #0284c7; display: inline-block;"></span> 📥 Source Node</span>
+                  <span style="display: flex; align-items: center; gap: 4px; color: #c084fc;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #9333ea; display: inline-block;"></span> 📤 Sink Node</span>
+                  <span style="display: flex; align-items: center; gap: 4px; color: #94a3b8;"><span style="width: 14px; height: 2px; background: #38bdf8; display: inline-block;"></span> ➔ Directed Edge</span>
+                </div>
+              </div>
+              <div id="graph-card-wrapper" style="position: relative; width: 100%; height: 480px; background: #0d131f; border-radius: 0 0 6px 6px; overflow: hidden; border: 1px solid var(--card-border); transition: all 0.3s ease;">
                 <div class="graph-controls">
                   <button class="graph-btn" onclick="graphFit()">Fit View</button>
                   <button class="graph-btn" onclick="graphZoom(1.2)">+ Zoom</button>
@@ -1829,15 +1843,30 @@
       loadCaseOverview(1);
     }
 
-    function downloadMasterLedgerCSV() {
-      showLoading('Preparing Master Forensic Ledger CSV (all 1,393 accounts)...');
+    function downloadUnifiedMasterSheetCSV() {
+      showLoading('Preparing Shareable Unified Master Sheet (Mules vs Non-Mules with explicit Is_Mule_Account column)...');
       const link = document.createElement('a');
-      link.href = `${API_BASE}/api/export/master-ledger?format=csv`;
-      link.download = 'Abhedya_Chakra_Master_Forensic_Ledger.csv';
+      link.href = `${API_BASE}/api/export/master-ledger?format=csv&include_clean=true&view=unified`;
+      link.download = 'Abhedya_Chakra_Unified_Forensic_Ledger_Mules_vs_Clean.csv';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       setTimeout(() => hideLoading(), 600);
+    }
+
+    function downloadMulesOnlyCSV() {
+      showLoading('Preparing Mule Accounts Only Master Sheet (1,393 accounts)...');
+      const link = document.createElement('a');
+      link.href = `${API_BASE}/api/export/master-ledger?format=csv&include_clean=false&view=mules_only`;
+      link.download = 'Abhedya_Chakra_Master_Forensic_Ledger_Mules_Only.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => hideLoading(), 600);
+    }
+
+    function downloadMasterLedgerCSV() {
+      downloadUnifiedMasterSheetCSV();
     }
 
     function changeOverviewPageSize(val) {
@@ -2748,10 +2777,16 @@
       }
     }
 
-    // Cytoscape Directed Graph Renderer
+    // Nodes & Edges Graph State
+    let isSvgGraphActive = false;
+    let svgGraphZoom = 1;
+    let svgGraphTranslate = { x: 0, y: 0 };
+
+    // Nodes & Edges Directed Graph Renderer
     function renderCytoscapeGraph(traceData) {
       const container = document.getElementById('graph-container');
-      
+      if (!container) return;
+
       const elements = [];
       const nodeSet = new Set();
       const pivotAcc = currentAccountData ? currentAccountData.account_id : '';
@@ -2760,15 +2795,34 @@
       const paths = traceData.paths || [];
 
       if (paths.length === 0 && traceData.start_transaction) {
-        // Single starting transaction edge
         const st = traceData.start_transaction;
         if (!nodeSet.has(st.sender_account)) {
           nodeSet.add(st.sender_account);
-          elements.push({ data: { id: st.sender_account, label: st.sender_account, isPivot: st.sender_account === pivotAcc } });
+          const isP = st.sender_account === pivotAcc;
+          elements.push({ 
+            data: { 
+              id: st.sender_account, 
+              label: st.sender_account, 
+              isPivot: isP,
+              role: isP ? 'mule' : 'source',
+              roleLabel: isP ? '🎯 MULE NODE' : '📥 SOURCE NODE',
+              fullLabel: isP ? `🎯 MULE NODE\n${st.sender_account}` : `📥 SOURCE NODE\n${st.sender_account}`
+            } 
+          });
         }
         if (!nodeSet.has(st.receiver_account)) {
           nodeSet.add(st.receiver_account);
-          elements.push({ data: { id: st.receiver_account, label: st.receiver_account, isPivot: st.receiver_account === pivotAcc } });
+          const isP = st.receiver_account === pivotAcc;
+          elements.push({ 
+            data: { 
+              id: st.receiver_account, 
+              label: st.receiver_account, 
+              isPivot: isP,
+              role: isP ? 'mule' : 'sink',
+              roleLabel: isP ? '🎯 MULE NODE' : '📤 SINK NODE',
+              fullLabel: isP ? `🎯 MULE NODE\n${st.receiver_account}` : `📤 SINK NODE\n${st.receiver_account}`
+            } 
+          });
         }
         elements.push({
           data: {
@@ -2786,11 +2840,31 @@
             const v = e.to_account;
             if (!nodeSet.has(u)) {
               nodeSet.add(u);
-              elements.push({ data: { id: u, label: u, isPivot: u === pivotAcc } });
+              const isP = u === pivotAcc;
+              elements.push({ 
+                data: { 
+                  id: u, 
+                  label: u, 
+                  isPivot: isP,
+                  role: isP ? 'mule' : (v === pivotAcc ? 'source' : 'intermediate'),
+                  roleLabel: isP ? '🎯 MULE NODE' : (v === pivotAcc ? '📥 SOURCE' : 'NODE'),
+                  fullLabel: isP ? `🎯 MULE NODE\n${u}` : (v === pivotAcc ? `📥 SOURCE NODE\n${u}` : `NODE\n${u}`)
+                } 
+              });
             }
             if (!nodeSet.has(v)) {
               nodeSet.add(v);
-              elements.push({ data: { id: v, label: v, isPivot: v === pivotAcc } });
+              const isP = v === pivotAcc;
+              elements.push({ 
+                data: { 
+                  id: v, 
+                  label: v, 
+                  isPivot: isP,
+                  role: isP ? 'mule' : (u === pivotAcc ? 'sink' : 'forwarder'),
+                  roleLabel: isP ? '🎯 MULE NODE' : (u === pivotAcc ? '📤 SINK' : 'NODE'),
+                  fullLabel: isP ? `🎯 MULE NODE\n${v}` : (u === pivotAcc ? `📤 SINK NODE\n${v}` : `NODE\n${v}`)
+                } 
+              });
             }
             const edgeId = `e-${e.row_id}-${u}-${v}`;
             if (!elements.some(item => item.data.id === edgeId)) {
@@ -2808,81 +2882,297 @@
         });
       }
 
+      // Update topology stats bar
+      const nodeCount = nodeSet.size;
+      const edgeCount = elements.filter(e => e.data.source).length;
+      const statsEl = document.getElementById('graph-topology-stats');
+      if (statsEl) {
+        statsEl.innerHTML = `🔵 <strong>${nodeCount} Nodes</strong> & ➡️ <strong>${edgeCount} Directed Edges</strong> • Transit Flow Sequence`;
+      }
+
       // Check if Cytoscape library loaded
       if (typeof cytoscape === 'undefined') {
-        renderFallbackSvgGraph(elements);
+        isSvgGraphActive = true;
+        renderInteractiveSvgNodeEdgeGraph(elements, pivotAcc);
         return;
       }
 
+      isSvgGraphActive = false;
       if (cy) {
         try { cy.destroy(); } catch (e) {}
       }
 
-      cy = cytoscape({
-        container: container,
-        elements: elements,
-        style: [
-          {
-            selector: 'node',
-            style: {
-              'background-color': '#1e293b',
-              'border-width': 2,
-              'border-color': '#38bdf8',
-              'label': 'data(label)',
-              'color': '#f8fafc',
-              'font-size': '11px',
-              'font-family': 'monospace',
-              'text-valign': 'center',
-              'text-halign': 'center',
-              'width': 120,
-              'height': 36,
-              'shape': 'roundrectangle'
+      try {
+        cy = cytoscape({
+          container: container,
+          elements: elements,
+          style: [
+            {
+              selector: 'node',
+              style: {
+                'background-color': '#0f172a',
+                'border-width': 2.5,
+                'border-color': '#38bdf8',
+                'label': 'data(fullLabel)',
+                'text-wrap': 'wrap',
+                'color': '#f8fafc',
+                'font-size': '10px',
+                'font-family': 'monospace',
+                'text-valign': 'center',
+                'text-halign': 'center',
+                'width': 135,
+                'height': 48,
+                'shape': 'roundrectangle'
+              }
+            },
+            {
+              selector: 'node[role = "mule"], node[?isPivot]',
+              style: {
+                'background-color': '#450a0a',
+                'border-color': '#ef4444',
+                'border-width': 3.5,
+                'color': '#ffffff',
+                'font-weight': 'bold',
+                'width': 145,
+                'height': 52
+              }
+            },
+            {
+              selector: 'node[role = "source"]',
+              style: {
+                'background-color': '#082f49',
+                'border-color': '#38bdf8',
+                'border-width': 2.5
+              }
+            },
+            {
+              selector: 'node[role = "sink"]',
+              style: {
+                'background-color': '#3b0764',
+                'border-color': '#c084fc',
+                'border-width': 2.5
+              }
+            },
+            {
+              selector: 'edge',
+              style: {
+                'width': 3,
+                'line-color': '#0284c7',
+                'target-arrow-color': '#38bdf8',
+                'target-arrow-shape': 'triangle',
+                'arrow-scale': 1.5,
+                'curve-style': 'bezier',
+                'label': 'data(label)',
+                'font-size': '10px',
+                'font-weight': 'bold',
+                'color': '#38bdf8',
+                'text-rotation': 'autorotate',
+                'text-margin-y': -10,
+                'font-family': 'monospace',
+                'text-background-color': '#090d16',
+                'text-background-opacity': 0.9,
+                'text-background-padding': 3,
+                'text-border-color': '#0284c7',
+                'text-border-width': 1,
+                'text-border-opacity': 0.7
+              }
             }
-          },
-          {
-            selector: 'node[?isPivot]',
-            style: {
-              'background-color': '#0284c7',
-              'border-color': '#e0f2fe',
-              'border-width': 3,
-              'font-weight': 'bold'
-            }
-          },
-          {
-            selector: 'edge',
-            style: {
-              'width': 2,
-              'line-color': '#475569',
-              'target-arrow-color': '#38bdf8',
-              'target-arrow-shape': 'triangle',
-              'curve-style': 'bezier',
-              'label': 'data(label)',
-              'font-size': '10px',
-              'color': '#94a3b8',
-              'text-rotation': 'autorotate',
-              'text-margin-y': -8,
-              'font-family': 'monospace'
-            }
+          ],
+          layout: {
+            name: 'breadthfirst',
+            directed: true,
+            padding: 35,
+            spacingFactor: 1.4
           }
-        ],
-        layout: {
-          name: 'breadthfirst',
-          directed: true,
-          padding: 30,
-          spacingFactor: 1.5
-        }
+        });
+
+        cy.ready(() => {
+          cy.resize();
+          cy.fit(undefined, 30);
+        });
+      } catch (err) {
+        console.warn('Cytoscape render fallback to SVG:', err);
+        isSvgGraphActive = true;
+        renderInteractiveSvgNodeEdgeGraph(elements, pivotAcc);
+      }
+    }
+
+    // Native Vector SVG Nodes & Edges Graph Renderer
+    function renderInteractiveSvgNodeEdgeGraph(elements, pivotAcc) {
+      const container = document.getElementById('graph-container');
+      if (!container) return;
+
+      const nodes = elements.filter(e => !e.data.source).map(e => e.data);
+      const edges = elements.filter(e => e.data.source).map(e => e.data);
+
+      if (nodes.length === 0) {
+        container.innerHTML = '<div style="display:flex;height:100%;align-items:center;justify-content:center;color:var(--text-dim);font-size:13px;">No transaction paths to display.</div>';
+        return;
+      }
+
+      // Group nodes into DAG columns
+      const pivotNode = nodes.find(n => n.id === pivotAcc) || (nodes.length > 0 ? nodes[0] : null);
+      const pivotId = pivotNode ? pivotNode.id : '';
+
+      const sourceNodes = nodes.filter(n => n.id !== pivotId && edges.some(e => e.source === n.id && e.target === pivotId));
+      const sinkNodes = nodes.filter(n => n.id !== pivotId && edges.some(e => e.source === pivotId && e.target === n.id));
+      const otherNodes = nodes.filter(n => n.id !== pivotId && !sourceNodes.includes(n) && !sinkNodes.includes(n));
+
+      // Coordinate assignment
+      const nodePos = {};
+      const H = 460;
+      const W = 840;
+
+      // Senders on left (x = 140)
+      sourceNodes.forEach((n, idx) => {
+        const y = sourceNodes.length === 1 ? H / 2 : 70 + idx * ((H - 140) / (sourceNodes.length - 1 || 1));
+        nodePos[n.id] = { x: 140, y: y, type: 'source' };
       });
 
-      cy.ready(() => {
-        cy.resize();
-        cy.fit(undefined, 30);
+      // Pivot in center (x = 420)
+      if (pivotNode) {
+        nodePos[pivotId] = { x: 420, y: H / 2, type: 'mule' };
+      }
+
+      // Sinks on right (x = 700)
+      const rightGroup = [...sinkNodes, ...otherNodes];
+      rightGroup.forEach((n, idx) => {
+        const y = rightGroup.length === 1 ? H / 2 : 70 + idx * ((H - 140) / (rightGroup.length - 1 || 1));
+        nodePos[n.id] = { x: 700, y: y, type: 'sink' };
       });
+
+      // Build SVG Edges (Directed connecting lines with amount badges)
+      const edgesSvg = edges.map(e => {
+        const from = nodePos[e.source] || { x: 140, y: H / 2 };
+        const to = nodePos[e.target] || { x: 700, y: H / 2 };
+
+        const startX = from.x + (from.type === 'mule' ? 75 : 65);
+        const startY = from.y;
+        const endX = to.x - (to.type === 'mule' ? 75 : 65);
+        const endY = to.y;
+
+        const ctrlX1 = startX + (endX - startX) * 0.45;
+        const ctrlX2 = startX + (endX - startX) * 0.55;
+        const pathD = `M ${startX} ${startY} C ${ctrlX1} ${startY}, ${ctrlX2} ${endY}, ${endX} ${endY}`;
+        const midX = (startX + endX) / 2;
+        const midY = (startY + endY) / 2;
+
+        return `
+          <g class="svg-graph-edge">
+            <!-- Glow background edge -->
+            <path d="${pathD}" stroke="#0369a1" stroke-width="4" fill="none" opacity="0.4"/>
+            <!-- Main directed flow line -->
+            <path d="${pathD}" stroke="#38bdf8" stroke-width="2.5" fill="none" marker-end="url(#svg-arrowhead)"/>
+            <!-- Animated Flow Pulse -->
+            <path d="${pathD}" stroke="#e0f2fe" stroke-width="2.5" stroke-dasharray="8, 12" fill="none" opacity="0.8">
+              <animate attributeName="stroke-dashoffset" from="40" to="0" dur="1.2s" repeatCount="indefinite"/>
+            </path>
+            <!-- Edge Amount Pill Badge -->
+            <g transform="translate(${midX}, ${midY})">
+              <rect x="-65" y="-12" width="130" height="24" rx="12" fill="#090d16" stroke="#38bdf8" stroke-width="1.2" opacity="0.95"/>
+              <text x="0" y="4" fill="#7dd3fc" font-size="10" font-family="monospace" text-anchor="middle" font-weight="700">${e.label}</text>
+            </g>
+          </g>
+        `;
+      }).join('');
+
+      // Build SVG Nodes
+      const nodesSvg = Object.keys(nodePos).map(id => {
+        const pos = nodePos[id];
+        const isMule = pos.type === 'mule';
+        const isSrc = pos.type === 'source';
+        const bankPrefix = id.substring(0, 4);
+
+        if (isMule) {
+          return `
+            <g class="svg-graph-node" transform="translate(${pos.x}, ${pos.y})" onclick="searchAccount('${id}')" style="cursor: pointer;">
+              <!-- Outer glowing aura -->
+              <rect x="-82" y="-28" width="164" height="56" rx="28" fill="rgba(239, 68, 68, 0.12)" stroke="#ef4444" stroke-width="2" stroke-dasharray="5, 3">
+                <animate attributeName="stroke-dashoffset" from="0" to="16" dur="2s" repeatCount="indefinite"/>
+              </rect>
+              <!-- Core Node Body -->
+              <rect x="-76" y="-24" width="152" height="48" rx="24" fill="#1e1320" stroke="#ef4444" stroke-width="2.5"/>
+              <!-- Node Icon & Label -->
+              <text x="0" y="-7" fill="#f87171" font-size="9" font-family="monospace" text-anchor="middle" font-weight="800">🎯 MULE ACCOUNT</text>
+              <text x="0" y="11" fill="#ffffff" font-size="12" font-family="monospace" text-anchor="middle" font-weight="700">${id}</text>
+              <text x="0" y="21" fill="#fbbf24" font-size="8" font-family="monospace" text-anchor="middle">${bankPrefix} • Monitored Target</text>
+            </g>
+          `;
+        }
+
+        const borderCol = isSrc ? '#38bdf8' : '#c084fc';
+        const bgCol = isSrc ? '#082f49' : '#2e1065';
+        const tagCol = isSrc ? '#7dd3fc' : '#d8b4fe';
+        const roleText = isSrc ? '📥 INFLOW SOURCE' : '📤 DISPERSAL SINK';
+
+        return `
+          <g class="svg-graph-node" transform="translate(${pos.x}, ${pos.y})" onclick="searchAccount('${id}')" style="cursor: pointer;">
+            <rect x="-68" y="-21" width="136" height="42" rx="21" fill="${bgCol}" stroke="${borderCol}" stroke-width="2"/>
+            <text x="0" y="-5" fill="${tagCol}" font-size="8.5" font-family="monospace" text-anchor="middle" font-weight="700">${roleText}</text>
+            <text x="0" y="10" fill="#f8fafc" font-size="11" font-family="monospace" text-anchor="middle" font-weight="600">${id}</text>
+          </g>
+        `;
+      }).join('');
+
+      container.innerHTML = `
+        <svg id="svg-graph-root" viewBox="0 0 ${W} ${H}" width="100%" height="100%" style="background: #090d16; user-select: none;">
+          <defs>
+            <marker id="svg-arrowhead" viewBox="0 0 10 10" refX="28" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="#38bdf8"/>
+            </marker>
+          </defs>
+          <g id="svg-graph-layer" transform="translate(${svgGraphTranslate.x}, ${svgGraphTranslate.y}) scale(${svgGraphZoom})">
+            <!-- Edges Layer -->
+            ${edgesSvg}
+            <!-- Nodes Layer -->
+            ${nodesSvg}
+          </g>
+        </svg>
+      `;
+    }
+
+    function renderFallbackSvgGraph(elements) {
+      const pivotAcc = currentAccountData ? currentAccountData.account_id : '';
+      isSvgGraphActive = true;
+      renderInteractiveSvgNodeEdgeGraph(elements, pivotAcc);
     }
 
     // Graph Controls
-    function graphFit() { if (cy) cy.fit(); }
-    function graphZoom(factor) { if (cy) cy.zoom(cy.zoom() * factor); }
-    function graphReset() { if (cy) { cy.fit(); cy.center(); } }
+    function graphFit() { 
+      if (!isSvgGraphActive && cy) { 
+        cy.fit(); 
+      } else {
+        svgGraphZoom = 1;
+        svgGraphTranslate = { x: 0, y: 0 };
+        updateSvgGraphTransform();
+      }
+    }
+
+    function graphZoom(factor) { 
+      if (!isSvgGraphActive && cy) { 
+        cy.zoom(cy.zoom() * factor); 
+      } else {
+        svgGraphZoom *= factor;
+        updateSvgGraphTransform();
+      }
+    }
+
+    function graphReset() { 
+      if (!isSvgGraphActive && cy) { 
+        cy.fit(); cy.center(); 
+      } else {
+        svgGraphZoom = 1;
+        svgGraphTranslate = { x: 0, y: 0 };
+        updateSvgGraphTransform();
+      }
+    }
+
+    function updateSvgGraphTransform() {
+      const layer = document.getElementById('svg-graph-layer');
+      if (layer) {
+        layer.setAttribute('transform', `translate(${svgGraphTranslate.x}, ${svgGraphTranslate.y}) scale(${svgGraphZoom})`);
+      }
+    }
 
     function renderEmptyGraph(msg = 'No transaction graph paths to display.') {
       const container = document.getElementById('graph-container');

@@ -422,6 +422,8 @@ def compute_case_overview() -> Dict[str, Any]:
                 "account_id": acc,
                 "bank_prefix": bank_prefix,
                 "bank_name": bank_name,
+                "is_mule": True,
+                "is_mule_label": "YES (Mule Account)",
                 "risk_score": int(score),
                 "mule_role": mule_role,
                 "role_type": role_type,
@@ -433,6 +435,42 @@ def compute_case_overview() -> Dict[str, Any]:
                 "retained_inr": round(retained, 2),
                 "retained_pct": retained_pct,
                 "matched_indicator_names": matched
+            })
+
+        clean_raw = con.execute("""
+            SELECT 
+                acc, risk_score, in_deg, out_deg,
+                ROUND(in_amt, 2) as in_amt,
+                ROUND(out_amt, 2) as out_amt
+            FROM temp_case_scored
+            WHERE risk_score = 0
+            ORDER BY in_amt DESC, acc ASC
+            LIMIT 500
+        """).fetchall()
+
+        clean_accounts = []
+        for rank_offset, r in enumerate(clean_raw, 1):
+            acc, score, in_deg, out_deg, in_amt, out_amt = r
+            bank_prefix = acc[:4]
+            bank_name = BANK_NAMES.get(bank_prefix, bank_prefix)
+            clean_accounts.append({
+                "rank": len(ranked_accounts) + rank_offset,
+                "account_id": acc,
+                "bank_prefix": bank_prefix,
+                "bank_name": bank_name,
+                "is_mule": False,
+                "is_mule_label": "NO (Clean / Non-Mule)",
+                "risk_score": 0,
+                "mule_role": "Clean Normal Baseline Account",
+                "role_type": "clean",
+                "evidence_desc": "Conforms to standard operating baselines. Zero behavioral indicators matched.",
+                "in_degree": int(in_deg),
+                "out_degree": int(out_deg),
+                "total_incoming_inr": float(in_amt or 0.0),
+                "total_outgoing_inr": float(out_amt or 0.0),
+                "retained_inr": max(0.0, float(in_amt or 0.0) - float(out_amt or 0.0)),
+                "retained_pct": 0.0,
+                "matched_indicator_names": []
             })
 
         bank_summary = [
@@ -452,7 +490,8 @@ def compute_case_overview() -> Dict[str, Any]:
             "groups": groups,
             "bank_summary": bank_summary,
             "role_summary": role_summary,
-            "ranked_accounts": ranked_accounts
+            "ranked_accounts": ranked_accounts,
+            "clean_accounts": clean_accounts
         }
         return _case_overview_cache
 
@@ -504,21 +543,35 @@ def get_case_overview(
 
 @app.get("/api/export/master-ledger")
 def export_master_ledger(
-    format: str = Query("csv", pattern="^(csv|json)$", description="Export format: csv or json")
+    format: str = Query("csv", pattern="^(csv|json)$", description="Export format: csv or json"),
+    include_clean: bool = Query(True, description="Include clean non-mule baseline accounts for unified comparative sharing"),
+    view: str = Query("unified", pattern="^(unified|mules_only|clean_only)$", description="Export scope")
 ) -> Any:
     """
-    Exports all 1,393 flagged accounts across all forensic layers in a single batch file.
+    Exports accounts across all forensic layers in a single unified batch file.
     Provides complete multi-account access without requiring individual lookups.
+    Features explicit Is_Mule_Account column ('YES (Mule Account)' vs 'NO (Clean / Non-Mule)')
+    so the sheet can be shared directly with enforcement and banking partners without manual work.
     """
     data = compute_case_overview()
     all_ranked = data["ranked_accounts"]
+    clean_accounts = data.get("clean_accounts", [])
+
+    if view == "mules_only" or (not include_clean and view != "clean_only"):
+        export_accounts = all_ranked
+    elif view == "clean_only":
+        export_accounts = clean_accounts
+    else:  # unified
+        export_accounts = all_ranked + clean_accounts
 
     if format == "json":
         return {
-            "title": "Operation Abhedya-Chakra — Master Forensic Ledger",
-            "total_accounts": len(all_ranked),
+            "title": "Operation Abhedya-Chakra — Unified Forensic Ledger",
+            "total_accounts": len(export_accounts),
+            "mule_accounts_count": len(all_ranked),
+            "clean_accounts_count": len(clean_accounts),
             "groups_summary": data["groups"],
-            "accounts": all_ranked
+            "accounts": export_accounts
         }
 
     import io
@@ -531,9 +584,10 @@ def export_master_ledger(
         "Rank",
         "Account_ID",
         "Bank_Name",
-        "Risk_Score",
-        "Mule_Role",
-        "Behavioral_Evidence",
+        "Is_Mule_Account",              # Explicitly YES or NO!
+        "Mule_Classification_Role",     # Layer 1 Transit, Terminal Sink, etc. or Clean Normal Baseline
+        "Deterministic_Risk_Score",     # 100, 50, 40, 30, 0
+        "Forensic_Evidence_Summary",    # Pattern description or Baseline explanation
         "Total_Incoming_INR",
         "Total_Outgoing_INR",
         "Retained_INR",
@@ -542,13 +596,17 @@ def export_master_ledger(
         "Matched_Indicators"
     ])
 
-    for acc in all_ranked:
+    for acc in export_accounts:
+        is_mule = acc.get("is_mule", acc.get("risk_score", 0) >= 30)
+        is_mule_text = "YES (Mule Account)" if is_mule else "NO (Clean / Non-Mule)"
+
         writer.writerow([
             acc["rank"],
             acc["account_id"],
             acc.get("bank_name", acc["account_id"][:4]),
+            is_mule_text,
+            acc.get("mule_role", "Mule Node" if is_mule else "Clean Baseline"),
             acc["risk_score"],
-            acc.get("mule_role", "Mule Node"),
             acc.get("evidence_desc", ""),
             f"{acc['total_incoming_inr']:.2f}",
             f"{acc['total_outgoing_inr']:.2f}",
@@ -559,11 +617,12 @@ def export_master_ledger(
         ])
 
     csv_content = output.getvalue()
+    filename = "Abhedya_Chakra_Unified_Forensic_Ledger_Mules_vs_Clean.csv" if include_clean and view != "mules_only" else "Abhedya_Chakra_Master_Forensic_Ledger.csv"
     return Response(
         content=csv_content,
         media_type="text/csv",
         headers={
-            "Content-Disposition": "attachment; filename=Abhedya_Chakra_Master_Forensic_Ledger.csv"
+            "Content-Disposition": f"attachment; filename={filename}"
         }
     )
 

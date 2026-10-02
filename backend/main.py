@@ -320,7 +320,7 @@ def compute_case_overview() -> Dict[str, Any]:
             SELECT 
                 'layer_2' as grp_id,
                 'Layer 2' as name,
-                'Accounts with rare infrastructure (score != 100)' as desc,
+                'Accounts with rare infrastructure (score 50 & 30)' as desc,
                 COUNT(*) as account_count,
                 ROUND(SUM(in_amt), 2) as total_incoming_inr,
                 ROUND(SUM(out_amt), 2) as total_outgoing_inr

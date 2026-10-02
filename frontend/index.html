@@ -1,0 +1,1768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Operation Abhedya-Chakra — Financial Forensic Analysis Dashboard</title>
+  
+  <!-- Cytoscape for Network Flow Graph -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+  <!-- html2pdf for Client-Side Report Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <style>
+    :root {
+      --bg-dark: #0b0f17;
+      --panel-bg: #111827;
+      --card-bg: #162032;
+      --card-border: #1e293b;
+      --border-focus: #38bdf8;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --accent-cyan: #38bdf8;
+      --accent-blue: #3b82f6;
+      --risk-high: #ef4444;
+      --risk-med: #f59e0b;
+      --risk-safe: #10b981;
+      --risk-pill-bg: rgba(239, 68, 68, 0.15);
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      font-size: 14px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation Header */
+    header {
+      background: var(--panel-bg);
+      border-bottom: 1px solid var(--card-border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #1e3a8a, #0284c7);
+      border: 1px solid var(--accent-cyan);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #fff;
+      font-size: 16px;
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #fff;
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .search-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 480px;
+      width: 100%;
+    }
+
+    .search-input {
+      flex: 1;
+      background: var(--bg-dark);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .search-input:focus {
+      border-color: var(--border-focus);
+    }
+
+    .btn {
+      background: var(--accent-blue);
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s;
+    }
+
+    .btn:hover {
+      background: #2563eb;
+    }
+
+    .btn-secondary {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+    }
+
+    .btn-secondary:hover {
+      background: #1e293b;
+    }
+
+    .btn-danger {
+      background: #b91c1c;
+    }
+
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34d399;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      padding: 24px;
+      max-width: 1720px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Notice Banner */
+    .banner {
+      background: rgba(14, 165, 233, 0.08);
+      border: 1px solid rgba(14, 165, 233, 0.25);
+      border-radius: 6px;
+      padding: 10px 16px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #bae6fd;
+    }
+
+    /* Section Cards & Grid */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 360px 1fr 420px;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 1400px) {
+      .dashboard-grid {
+        grid-template-columns: 340px 1fr;
+      }
+      .col-right {
+        grid-column: span 2;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+      .col-right {
+        grid-column: span 1;
+      }
+    }
+
+    .panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header {
+      padding: 12px 16px;
+      background: rgba(22, 32, 50, 0.5);
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-body {
+      padding: 16px;
+      flex: 1;
+    }
+
+    /* Risk Score Component */
+    .score-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 16px;
+      background: var(--card-bg);
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .score-num {
+      font-size: 54px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .score-high { color: var(--risk-high); }
+    .score-med { color: var(--risk-med); }
+    .score-zero { color: var(--risk-safe); }
+
+    .score-caption {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+    }
+
+    .score-subtext {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* Indicator List */
+    .indicator-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .indicator-pill {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-left: 3px solid var(--accent-cyan);
+      padding: 10px 12px;
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .indicator-pill.active {
+      border-left-color: var(--risk-high);
+    }
+
+    .indicator-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .indicator-name {
+      font-size: 12px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: #e2e8f0;
+    }
+
+    .indicator-pts {
+      font-size: 11px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: #f87171;
+    }
+
+    .indicator-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.3;
+    }
+
+    /* Metric Grid */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .metric-item {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      padding: 10px 12px;
+      border-radius: 6px;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .metric-val {
+      font-size: 15px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: #fff;
+    }
+
+    /* Device / IP Box */
+    .tech-box {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    .tech-tag {
+      display: inline-block;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      color: var(--accent-cyan);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      margin: 2px 4px 2px 0;
+    }
+
+    /* Interactive Graph Canvas */
+    #graph-container {
+      width: 100%;
+      height: 480px;
+      background: #0d131f;
+      border-radius: 6px;
+      position: relative;
+    }
+
+    .graph-controls {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 10;
+      display: flex;
+      gap: 6px;
+    }
+
+    .graph-btn {
+      background: rgba(17, 24, 39, 0.85);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+    }
+
+    .graph-btn:hover {
+      background: #1e293b;
+      border-color: var(--accent-cyan);
+    }
+
+    .disclaimer-box {
+      padding: 8px 12px;
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      border-radius: 4px;
+      color: #fcd34d;
+      font-size: 11px;
+      margin-top: 10px;
+      line-height: 1.4;
+    }
+
+    /* Explanation & Guardrails */
+    .explanation-text {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 14px;
+      font-size: 13px;
+      color: #e2e8f0;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      margin-bottom: 16px;
+    }
+
+    .badge-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .guard-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+    }
+
+    .guard-pass {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      color: #34d399;
+    }
+
+    .guard-fail {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      color: #f87171;
+    }
+
+    .source-badge {
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: var(--accent-cyan);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+    }
+
+    .limitations-box {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px dashed var(--card-border);
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .limitations-box h4 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+
+    .limitations-box ul {
+      padding-left: 18px;
+      line-height: 1.5;
+    }
+
+    /* Evidence & Observed Paths Tables */
+    .table-container {
+      overflow-x: auto;
+      margin-bottom: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: left;
+    }
+
+    th {
+      background: rgba(22, 32, 50, 0.8);
+      color: var(--text-dim);
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(30, 41, 59, 0.6);
+      color: #cbd5e1;
+    }
+
+    tr:hover td {
+      background: rgba(30, 41, 59, 0.3);
+    }
+
+    .td-mono {
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    .td-amt {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    /* Accordion */
+    .accordion-item {
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      margin-bottom: 10px;
+      background: var(--card-bg);
+      overflow: hidden;
+    }
+
+    .accordion-header {
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      background: rgba(22, 32, 50, 0.4);
+    }
+
+    .accordion-header:hover {
+      background: rgba(30, 41, 59, 0.6);
+    }
+
+    .accordion-title {
+      font-weight: 700;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .accordion-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent-cyan);
+    }
+
+    .accordion-body {
+      padding: 12px;
+      display: none;
+      border-top: 1px solid var(--card-border);
+    }
+
+    .accordion-body.open {
+      display: block;
+    }
+
+    /* Landing State */
+    .landing-hero {
+      text-align: center;
+      padding: 40px 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .hero-title {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+
+    .hero-desc {
+      font-size: 15px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    .quick-chips {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 30px;
+    }
+
+    .chip {
+      background: var(--panel-bg);
+      border: 1px solid var(--card-border);
+      color: #93c5fd;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .chip:hover {
+      border-color: var(--accent-cyan);
+      background: #1e293b;
+    }
+
+    /* Loading Spinner */
+    .spinner-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(11, 15, 23, 0.8);
+      backdrop-filter: blur(4px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .spinner {
+      width: 42px;
+      height: 42px;
+      border: 3px solid rgba(56, 189, 248, 0.2);
+      border-top-color: var(--accent-cyan);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Print / PDF Styles */
+    @media print {
+      body {
+        background: #fff !important;
+        color: #000 !important;
+      }
+      header, .header-actions, .search-bar, .graph-controls, .btn, .banner, .landing-hero {
+        display: none !important;
+      }
+      .panel, .card, .score-card, .metric-item, .tech-box, .explanation-text, .accordion-item {
+        background: #fff !important;
+        color: #000 !important;
+        border: 1px solid #ccc !important;
+        box-shadow: none !important;
+        page-break-inside: avoid;
+      }
+      .score-num {
+        color: #000 !important;
+      }
+      th {
+        background: #f1f5f9 !important;
+        color: #000 !important;
+      }
+      td {
+        color: #000 !important;
+        border-bottom: 1px solid #eee !important;
+      }
+      .accordion-body {
+        display: block !important;
+      }
+      #printable-report {
+        display: block !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loading State -->
+  <div id="loading-overlay" class="spinner-overlay">
+    <div class="spinner"></div>
+    <div id="loading-msg" style="font-size: 14px; font-weight: 600; color: #bae6fd;">Loading forensic investigation data...</div>
+  </div>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-logo">AC</div>
+      <div>
+        <div class="brand-title">Operation Abhedya-Chakra</div>
+        <div class="brand-sub">Indore Police • Financial Forensic Analysis</div>
+      </div>
+    </div>
+
+    <!-- Search Box -->
+    <div class="search-bar">
+      <input type="text" id="acc-search-input" class="search-input" placeholder="Enter Account ID (e.g. AIRP10000312)..." spellcheck="false" autocomplete="off" />
+      <button class="btn" id="btn-investigate" onclick="performSearch()">Investigate</button>
+    </div>
+
+    <!-- Header Actions -->
+    <div class="header-actions">
+      <div class="status-badge" id="backend-status">
+        <span class="status-dot"></span>
+        <span id="backend-engine-txt">DuckDB Columnar Online</span>
+      </div>
+      <button class="btn btn-secondary" id="btn-pdf-export" onclick="exportPdfReport()" style="display: none;">
+        <span>📄 Generate PDF Report</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Notification Banner -->
+  <div style="padding: 12px 24px 0 24px;">
+    <div class="banner">
+      <div>
+        <strong>Deterministic Forensic Layer:</strong> All risk scores and behavioral indicators are computed via deterministic pattern envelopes. No physical funds movement or subjective intent is asserted.
+      </div>
+      <div id="dataset-telemetry-tag" style="font-family: var(--font-mono); font-size: 11px;">
+        2,000,000 Verified Transactions
+      </div>
+    </div>
+  </div>
+
+  <!-- Main View Area -->
+  <main>
+
+    <!-- LANDING VIEW (Shown when no account selected) -->
+    <div id="landing-view">
+      <div class="landing-hero">
+        <h1 class="hero-title">Financial Transaction Analysis & Evidence Correlation</h1>
+        <p class="hero-desc">
+          Auditable forensic pattern detection on large-scale banking ledgers. Identifies rapid pass-through transit accounts, synthetic structuring envelopes, fan-out dispersal topologies, and infrastructure correlation.
+        </p>
+        <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Quick Investigation Samples</div>
+        <div class="quick-chips" id="quick-samples-chips">
+          <span class="chip" onclick="searchAccount('AIRP10000312')">AIRP10000312 (Score 100)</span>
+          <span class="chip" onclick="searchAccount('AXIS10000397')">AXIS10000397 (Score 100)</span>
+          <span class="chip" onclick="searchAccount('SBIN10000305')">SBIN10000305 (Score 100)</span>
+          <span class="chip" onclick="searchAccount('ICIC10014001')">ICIC10014001 (Score 0)</span>
+        </div>
+      </div>
+
+      <!-- Flagged Accounts Table -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>⚡ High-Score Flagged Accounts</span>
+            <span class="badge" id="flagged-count-badge" style="background: rgba(239,68,68,0.2); color: #f87171; font-family: var(--font-mono); padding: 2px 8px; border-radius: 12px; font-size: 11px;">129 Matching Pattern</span>
+          </div>
+          <div style="font-size: 12px; color: var(--text-dim);">Source: /api/flagged?min_score=100</div>
+        </div>
+        <div class="panel-body" style="padding: 0;">
+          <div class="table-container" style="margin-bottom: 0;">
+            <table id="flagged-table">
+              <thead>
+                <tr>
+                  <th>Account ID</th>
+                  <th>Risk Score</th>
+                  <th>Matched Indicators</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="flagged-tbody">
+                <tr><td colspan="4" style="text-align: center; padding: 20px;">Loading flagged accounts from backend...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACCOUNT INVESTIGATION VIEW (Shown when account loaded) -->
+    <div id="investigation-view" style="display: none;">
+
+      <!-- Account Top Header -->
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: baseline; gap: 16px;">
+          <h2 id="active-acc-id" style="font-size: 26px; font-family: var(--font-mono); color: #fff; font-weight: 700;">AIRP10000312</h2>
+          <span id="active-acc-type" style="font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);">Forensic Dossier</span>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn btn-secondary" onclick="showLandingView()">← Back to Flagged Accounts</button>
+          <button class="btn btn-secondary" onclick="exportPdfReport()">📄 Generate PDF Report</button>
+        </div>
+      </div>
+
+      <!-- Main Dashboard 3-Column Grid -->
+      <div class="dashboard-grid">
+
+        <!-- COLUMN 1: Score, Indicators, Overview -->
+        <div class="col-left">
+          
+          <!-- Score Card -->
+          <div class="score-card">
+            <div class="score-caption">Deterministic Risk Score</div>
+            <div id="score-val" class="score-num score-high">100 / 100</div>
+            <div id="score-status-text" class="score-subtext">All 4 Behavioral Pattern Indicators Matched</div>
+          </div>
+
+          <!-- Indicators Panel -->
+          <div class="panel" style="margin-bottom: 16px;">
+            <div class="panel-header">
+              <div class="panel-title">Matched Indicators</div>
+              <span id="matched-ind-cnt" style="font-family: var(--font-mono); font-size: 11px; color: var(--accent-cyan);">4 Active</span>
+            </div>
+            <div class="panel-body">
+              <div class="indicator-list" id="indicator-list-container">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Account Summary Metrics -->
+          <div class="panel" style="margin-bottom: 16px;">
+            <div class="panel-header">
+              <div class="panel-title">Account Flow Summary</div>
+            </div>
+            <div class="panel-body">
+              <div class="metric-grid">
+                <div class="metric-item">
+                  <div class="metric-label">In-Degree</div>
+                  <div class="metric-val" id="metric-indegree">3</div>
+                </div>
+                <div class="metric-item">
+                  <div class="metric-label">Out-Degree</div>
+                  <div class="metric-val" id="metric-outdegree">12</div>
+                </div>
+                <div class="metric-item">
+                  <div class="metric-label">Total Incoming</div>
+                  <div class="metric-val" id="metric-inamount">₹966,720.95</div>
+                </div>
+                <div class="metric-item">
+                  <div class="metric-label">Total Outgoing</div>
+                  <div class="metric-val" id="metric-outamount">₹947,386.54</div>
+                </div>
+                <div class="metric-item">
+                  <div class="metric-label">Out / In Ratio</div>
+                  <div class="metric-val" id="metric-ratio">0.9800</div>
+                </div>
+                <div class="metric-item">
+                  <div class="metric-label">Largest Inflow</div>
+                  <div class="metric-val" id="metric-largestin">₹421,653.32</div>
+                </div>
+              </div>
+
+              <!-- Device / IP Infrastructure Summary -->
+              <div class="tech-box">
+                <div style="font-weight: 700; color: #cbd5e1; margin-bottom: 4px;">Digital Infrastructure Fingerprint</div>
+                <div style="color: var(--text-muted); margin-bottom: 2px;">
+                  Outgoing Devices: <span id="infra-out-dev"><span class="tech-tag">Web_Emulator</span></span>
+                </div>
+                <div style="color: var(--text-muted); margin-bottom: 2px;">
+                  Incoming Devices: <span id="infra-in-dev"><span class="tech-tag">Android</span></span>
+                </div>
+                <div style="color: var(--text-muted);">
+                  Distinct IPs: <strong id="infra-ip-cnt" style="color: #fff;">12</strong> | Subnets: <span id="infra-sample-ips">185.*</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- COLUMN 2: Transaction Graph & Visual Flow Trace -->
+        <div class="col-center">
+          <div class="panel" style="height: 100%;">
+            <div class="panel-header">
+              <div class="panel-title">
+                <span>🌐 Interactive Flow Graph</span>
+                <span id="active-trace-tag" style="font-family: var(--font-mono); font-size: 11px; color: var(--accent-cyan); margin-left: 6px;">Row ID: 35196</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 11px; color: var(--text-dim);">Trace Row:</span>
+                <select id="trace-row-select" onchange="onTraceSelectChange()" style="background: var(--bg-dark); border: 1px solid var(--card-border); color: #fff; font-family: var(--font-mono); font-size: 11px; padding: 4px 8px; border-radius: 4px;">
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+            </div>
+            <div class="panel-body" style="display: flex; flex-direction: column;">
+              <div id="graph-container">
+                <div class="graph-controls">
+                  <button class="graph-btn" onclick="graphFit()">Fit View</button>
+                  <button class="graph-btn" onclick="graphZoom(1.2)">+ Zoom</button>
+                  <button class="graph-btn" onclick="graphZoom(0.8)">- Zoom</button>
+                  <button class="graph-btn" onclick="graphReset()">Reset</button>
+                </div>
+              </div>
+
+              <!-- Trace Disclaimer Box -->
+              <div class="disclaimer-box" id="trace-disclaimer">
+                All identified paths represent possible onward flow only. No proof of physical funds movement or subjective intent is asserted.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- COLUMN 3: Case Explanation, Guardrails & Audit Limitations -->
+        <div class="col-right">
+          <div class="panel" style="height: 100%;">
+            <div class="panel-header">
+              <div class="panel-title">Forensic Case Explanation</div>
+            </div>
+            <div class="panel-body" style="display: flex; flex-direction: column;">
+              
+              <!-- Badge Bar -->
+              <div class="badge-bar">
+                <div class="guard-badge guard-pass" id="badge-guardrail">
+                  <span>✓</span> Guardrail: PASSED
+                </div>
+                <div class="source-badge" id="badge-source">
+                  Source: Deterministic fallback
+                </div>
+              </div>
+
+              <!-- Explanation Narrative -->
+              <div class="explanation-text" id="explanation-body">
+                Loading explanation narrative...
+              </div>
+
+              <!-- Limitations Section (Always displayed) -->
+              <div class="limitations-box">
+                <h4>Statutory Limitations & Audit Interpretation</h4>
+                <ul id="limitations-list">
+                  <li>No ground-truth labels exist in dataset; all findings represent observed behavioral patterns only.</li>
+                  <li>Possible flow is not proven movement of physical funds.</li>
+                  <li>Unconfigured indicators were excluded from scoring.</li>
+                  <li>All cutoffs and indicator weights represent documented design choices.</li>
+                </ul>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- LOWER SECTION: Observed Paths & Supporting Evidence -->
+      <div style="display: grid; grid-template-columns: 1fr; gap: 20px;">
+
+        <!-- Observed Paths Section -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <span>📍 Observed Paths</span>
+              <span style="font-size: 11px; color: var(--text-dim); margin-left: 8px;">(Deterministic Chronological Transit Sequence)</span>
+            </div>
+            <span id="observed-paths-cnt" style="font-family: var(--font-mono); font-size: 11px; color: var(--accent-cyan);">3 Paths Observed</span>
+          </div>
+          <div class="panel-body" style="padding: 0;">
+            <div class="table-container" style="margin-bottom: 0;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Label</th>
+                    <th>In Row ID</th>
+                    <th>Out Row ID</th>
+                    <th>Flow Topology</th>
+                    <th>In Amount</th>
+                    <th>Out Amount</th>
+                    <th>Amount Ratio</th>
+                    <th>Time Gap</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="observed-paths-tbody">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Evidence by Indicator Accordions -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <span>📋 Supporting Evidence by Indicator</span>
+            </div>
+            <span style="font-size: 11px; color: var(--text-dim);">Preserves Exact Contributing Transactions</span>
+          </div>
+          <div class="panel-body">
+            <div id="evidence-accordion-container">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ERROR / NOT FOUND VIEW -->
+    <div id="error-view" style="display: none; text-align: center; padding: 60px 20px;">
+      <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+      <h2 id="error-title" style="font-size: 20px; color: #fff; margin-bottom: 8px;">Account Not Found</h2>
+      <p id="error-desc" style="color: var(--text-muted); max-width: 500px; margin: 0 auto 24px;">The requested account could not be found in the verified transaction database.</p>
+      <button class="btn btn-secondary" onclick="showLandingView()">Return to Search</button>
+    </div>
+
+  </main>
+
+  <!-- PDF Print Template (Clean Printable Audit Dossier) -->
+  <div id="printable-report" style="display: none; padding: 24px; color: #000; background: #fff; font-family: sans-serif;">
+    <div style="border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: flex-end;">
+      <div>
+        <h1 style="font-size: 22px; margin: 0;">Operation Abhedya-Chakra — Forensic Investigation Dossier</h1>
+        <div style="font-size: 12px; color: #555; margin-top: 4px;">Indore Police Hackathon • Operation Abhedya-Chakra Auditable Banking Evidence System</div>
+      </div>
+      <div style="text-align: right; font-size: 11px; color: #555;">
+        <div>Dossier Date: <span id="pdf-date"></span></div>
+        <div>Target Account: <strong id="pdf-account-id" style="font-family: monospace;"></strong></div>
+      </div>
+    </div>
+
+    <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; margin-bottom: 16px;">
+      <h3 style="margin: 0 0 8px 0; font-size: 14px; text-transform: uppercase;">1. Deterministic Risk Assessment</h3>
+      <div style="display: flex; gap: 24px; align-items: center;">
+        <div>
+          <span style="font-size: 32px; font-weight: bold; font-family: monospace;" id="pdf-score">100/100</span>
+        </div>
+        <div style="font-size: 12px; line-height: 1.5;" id="pdf-score-summary"></div>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 16px;">
+      <h3 style="margin: 0 0 8px 0; font-size: 14px; text-transform: uppercase;">2. Matched Indicators Breakdown</h3>
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px;" border="1" cellpadding="6">
+        <thead>
+          <tr style="background: #f1f5f9;">
+            <th>Indicator</th>
+            <th>Contribution</th>
+            <th>Measured Envelope & Basis</th>
+          </tr>
+        </thead>
+        <tbody id="pdf-indicators-tbody"></tbody>
+      </table>
+    </div>
+
+    <div style="margin-bottom: 16px;">
+      <h3 style="margin: 0 0 8px 0; font-size: 14px; text-transform: uppercase;">3. Account Flow Summary Metrics</h3>
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px;" border="1" cellpadding="6">
+        <tbody id="pdf-metrics-tbody"></tbody>
+      </table>
+    </div>
+
+    <div style="margin-bottom: 16px;">
+      <h3 style="margin: 0 0 8px 0; font-size: 14px; text-transform: uppercase;">4. Forensic Case Explanation</h3>
+      <div id="pdf-explanation" style="font-size: 11px; line-height: 1.6; border: 1px solid #cbd5e1; padding: 10px; background: #fafafa; white-space: pre-wrap;"></div>
+    </div>
+
+    <div style="margin-bottom: 16px;">
+      <h3 style="margin: 0 0 8px 0; font-size: 14px; text-transform: uppercase;">5. Observed Chronological Paths</h3>
+      <table style="width: 100%; border-collapse: collapse; font-size: 10px;" border="1" cellpadding="5">
+        <thead>
+          <tr style="background: #f1f5f9;">
+            <th>In Row</th>
+            <th>Out Row</th>
+            <th>Transit Chain</th>
+            <th>In Amount</th>
+            <th>Out Amount</th>
+            <th>Ratio</th>
+            <th>Time Gap</th>
+          </tr>
+        </thead>
+        <tbody id="pdf-paths-tbody"></tbody>
+      </table>
+    </div>
+
+    <div style="border-top: 1px solid #ccc; padding-top: 10px; font-size: 10px; color: #666; line-height: 1.4;">
+      <strong>Statutory Limitations:</strong> No ground-truth labels exist in dataset; all findings represent observed behavioral patterns only. Possible flow is not physical funds movement. All cutoffs represent documented design choices.
+    </div>
+  </div>
+
+  <!-- Application Logic -->
+  <script>
+    // Configuration
+    const API_BASE = window.location.origin.includes('8000') 
+      ? window.location.origin 
+      : 'http://127.0.0.1:8000';
+
+    let cy = null;
+    let currentAccountData = null;
+    let currentExplainData = null;
+    let currentTraceData = null;
+
+    // Initialization
+    window.addEventListener('DOMContentLoaded', () => {
+      checkBackendHealth();
+      loadFlaggedAccounts();
+
+      // Enter key on search box
+      document.getElementById('acc-search-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') performSearch();
+      });
+    });
+
+    // Loading helper
+    function showLoading(msg = 'Loading forensic investigation data...') {
+      document.getElementById('loading-msg').innerText = msg;
+      document.getElementById('loading-overlay').style.display = 'flex';
+    }
+
+    function hideLoading() {
+      document.getElementById('loading-overlay').style.display = 'none';
+    }
+
+    // Health Check
+    async function checkBackendHealth() {
+      try {
+        const resp = await fetch(`${API_BASE}/health`);
+        const data = await resp.json();
+        if (data.status === 'healthy') {
+          document.getElementById('backend-engine-txt').innerText = `${data.engine} • Online`;
+        } else {
+          document.getElementById('backend-engine-txt').innerText = 'Degraded';
+        }
+      } catch (err) {
+        document.getElementById('backend-engine-txt').innerText = 'Backend Unreachable';
+        document.getElementById('backend-status').style.borderColor = 'rgba(239, 68, 68, 0.4)';
+        document.getElementById('backend-status').style.color = '#f87171';
+      }
+    }
+
+    // Load Flagged Accounts for Landing View
+    async function loadFlaggedAccounts() {
+      try {
+        const resp = await fetch(`${API_BASE}/api/flagged?min_score=100&limit=25`);
+        if (!resp.ok) throw new Error('Failed to load flagged accounts');
+        const data = await resp.json();
+
+        document.getElementById('flagged-count-badge').innerText = `${data.total_matching} Accounts Identified`;
+        const tbody = document.getElementById('flagged-tbody');
+        tbody.innerHTML = '';
+
+        if (!data.accounts || data.accounts.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No high-risk accounts returned.</td></tr>';
+          return;
+        }
+
+        data.accounts.forEach(acc => {
+          const tr = document.createElement('tr');
+          const indicatorsHtml = acc.matched_indicator_names.map(name => 
+            `<span class="tech-tag" style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.25); color: #f87171;">${name}</span>`
+          ).join(' ');
+
+          tr.innerHTML = `
+            <td class="td-mono"><strong>${acc.account_id}</strong></td>
+            <td class="td-mono"><span style="color: #ef4444; font-weight: 700;">${acc.risk_score} / 100</span></td>
+            <td>${indicatorsHtml}</td>
+            <td><button class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;" onclick="searchAccount('${acc.account_id}')">Investigate →</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        document.getElementById('flagged-tbody').innerHTML = `<tr><td colspan="4" style="text-align: center; color: #f87171; padding: 20px;">Unable to load flagged accounts: ${err.message}</td></tr>`;
+      }
+    }
+
+    // Search Trigger
+    function performSearch() {
+      const accId = document.getElementById('acc-search-input').value.trim();
+      if (!accId) return;
+      searchAccount(accId);
+    }
+
+    // Main Investigation Fetcher
+    async function searchAccount(accountId) {
+      showLoading(`Loading forensic profile for ${accountId}...`);
+      document.getElementById('acc-search-input').value = accountId;
+
+      try {
+        // Parallel fetch detect and explain endpoints
+        const [detectResp, explainResp] = await Promise.all([
+          fetch(`${API_BASE}/api/detect/${encodeURIComponent(accountId)}`),
+          fetch(`${API_BASE}/api/explain/${encodeURIComponent(accountId)}`)
+        ]);
+
+        if (detectResp.status === 404 || explainResp.status === 404) {
+          showErrorView('Account Not Found', `Account '${accountId}' was not found in the transaction records.`);
+          hideLoading();
+          return;
+        }
+
+        if (!detectResp.ok || !explainResp.ok) {
+          throw new Error('Backend returned an error during investigation analysis.');
+        }
+
+        currentAccountData = await detectResp.json();
+        currentExplainData = await explainResp.json();
+
+        renderInvestigationView(currentAccountData, currentExplainData);
+        hideLoading();
+      } catch (err) {
+        hideLoading();
+        showErrorView('Investigation Error', `Unable to connect to Abhedya-Chakra backend: ${err.message}`);
+      }
+    }
+
+    // Render Full Investigation Dashboard
+    function renderInvestigationView(detectData, explainData) {
+      document.getElementById('landing-view').style.display = 'none';
+      document.getElementById('error-view').style.display = 'none';
+      document.getElementById('investigation-view').style.display = 'block';
+      document.getElementById('btn-pdf-export').style.display = 'inline-flex';
+
+      const ctx = explainData.context || {};
+      const metrics = detectData.metrics || ctx.account_summary || {};
+      const score = detectData.risk_score;
+
+      // 1. Header & Score
+      document.getElementById('active-acc-id').innerText = detectData.account_id;
+      const scoreValEl = document.getElementById('score-val');
+      scoreValEl.innerText = `${score} / 100`;
+
+      if (score >= 80) {
+        scoreValEl.className = 'score-num score-high';
+        document.getElementById('score-status-text').innerText = 'Matches High-Risk Behavioral Profile';
+      } else if (score > 0) {
+        scoreValEl.className = 'score-num score-med';
+        document.getElementById('score-status-text').innerText = 'Moderate Behavioral Signal';
+      } else {
+        scoreValEl.className = 'score-num score-zero';
+        document.getElementById('score-status-text').innerText = 'No Indicators Matched (Baseline)';
+      }
+
+      // 2. Matched Indicators List
+      const indListEl = document.getElementById('indicator-list-container');
+      indListEl.innerHTML = '';
+      const matched = detectData.matched_indicators || [];
+      document.getElementById('matched-ind-cnt').innerText = `${matched.length} Active`;
+
+      if (matched.length === 0) {
+        indListEl.innerHTML = `
+          <div style="padding: 16px; text-align: center; color: var(--text-dim); background: var(--bg-dark); border-radius: 4px; font-size: 12px;">
+            ✓ No indicators matched for this account.<br>Activity conforms to normal baseline distribution.
+          </div>
+        `;
+      } else {
+        matched.forEach(ind => {
+          const pill = document.createElement('div');
+          pill.className = 'indicator-pill active';
+          pill.innerHTML = `
+            <div class="indicator-header">
+              <span class="indicator-name">${ind.indicator}</span>
+              <span class="indicator-pts">+${ind.contribution} pts</span>
+            </div>
+            <div class="indicator-desc">${ind.basis || 'Configured pattern envelope condition met'}</div>
+            <div style="font-size: 10px; color: var(--text-dim); margin-top: 2px;">${ind.evidence_summary || ''}</div>
+          `;
+          indListEl.appendChild(pill);
+        });
+      }
+
+      // 3. Flow Metrics Overview
+      document.getElementById('metric-indegree').innerText = metrics.in_degree ?? 0;
+      document.getElementById('metric-outdegree').innerText = metrics.out_degree ?? 0;
+      document.getElementById('metric-inamount').innerText = `₹${(metrics.in_amount || metrics.total_incoming_amount || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('metric-outamount').innerText = `₹${(metrics.out_amount || metrics.total_outgoing_amount || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      
+      const ratio = metrics.out_in_ratio;
+      document.getElementById('metric-ratio').innerText = ratio !== null && ratio !== undefined ? Number(ratio).toFixed(4) : 'N/A';
+      document.getElementById('metric-largestin').innerText = `₹${(metrics.largest_in_amount || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+      // 4. Device and IP Summary
+      const devSummary = ctx.device_ip_summary || {};
+      const outDevEl = document.getElementById('infra-out-dev');
+      outDevEl.innerHTML = (devSummary.outgoing_devices || []).map(d => `<span class="tech-tag">${d}</span>`).join('') || '<span style="color:var(--text-dim);">None</span>';
+      
+      const inDevEl = document.getElementById('infra-in-dev');
+      inDevEl.innerHTML = (devSummary.incoming_devices || []).map(d => `<span class="tech-tag">${d}</span>`).join('') || '<span style="color:var(--text-dim);">None</span>';
+      
+      document.getElementById('infra-ip-cnt').innerText = devSummary.distinct_ips || 0;
+      document.getElementById('infra-sample-ips').innerText = (devSummary.sample_ips || []).slice(0, 3).join(', ') || 'N/A';
+
+      // 5. Explanation Narrative & Guardrails
+      document.getElementById('explanation-body').innerText = explainData.explanation || 'No explanation available.';
+      
+      const guardBadge = document.getElementById('badge-guardrail');
+      const guardPassed = explainData.guardrail_status && explainData.guardrail_status.passed;
+      if (guardPassed) {
+        guardBadge.className = 'guard-badge guard-pass';
+        guardBadge.innerHTML = '<span>✓</span> Guardrail: PASSED';
+      } else {
+        guardBadge.className = 'guard-badge guard-fail';
+        guardBadge.innerHTML = '<span>✕</span> Guardrail: REJECTED';
+      }
+
+      // Source Badge
+      const sourceBadge = document.getElementById('badge-source');
+      sourceBadge.innerText = explainData.source === 'llm' ? 'Source: Local LLM' : 'Source: Deterministic fallback';
+
+      // Limitations
+      const limList = document.getElementById('limitations-list');
+      limList.innerHTML = '';
+      (ctx.limitations || []).forEach(lim => {
+        const li = document.createElement('li');
+        li.innerText = lim;
+        limList.appendChild(li);
+      });
+
+      // 6. Observed Paths Table
+      const pathsTbody = document.getElementById('observed-paths-tbody');
+      pathsTbody.innerHTML = '';
+      const obsPaths = ctx.observed_paths || [];
+      document.getElementById('observed-paths-cnt').innerText = `${obsPaths.length} Paths Observed`;
+
+      if (obsPaths.length === 0) {
+        pathsTbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--text-dim); padding: 16px;">No chronological transit paths observed through this account.</td></tr>';
+      } else {
+        obsPaths.forEach(p => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><span class="tech-tag" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.25); color: #34d399;">${p.label}</span></td>
+            <td class="td-mono">${p.in_row_id}</td>
+            <td class="td-mono">${p.out_row_id}</td>
+            <td class="td-mono" style="font-size: 11px;">${p.source_account} → <strong style="color:var(--accent-cyan);">${p.pivot_account}</strong> → ${p.destination_account}</td>
+            <td class="td-amt">₹${Number(p.in_amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+            <td class="td-amt">₹${Number(p.out_amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+            <td class="td-mono">${p.amount_ratio !== null ? Number(p.amount_ratio).toFixed(4) : 'N/A'}</td>
+            <td class="td-mono">${p.time_gap_seconds}s</td>
+            <td><button class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick="loadTraceForTxn(${p.in_row_id})">Trace Flow</button></td>
+          `;
+          pathsTbody.appendChild(tr);
+        });
+      }
+
+      // 7. Evidence Accordion
+      const evidenceContainer = document.getElementById('evidence-accordion-container');
+      evidenceContainer.innerHTML = '';
+      const evidenceMap = detectData.evidence_by_indicator || ctx.evidence_by_indicator || {};
+      const evidenceKeys = Object.keys(evidenceMap);
+
+      if (evidenceKeys.length === 0) {
+        evidenceContainer.innerHTML = '<div style="color: var(--text-dim); padding: 16px; text-align: center;">No contributing evidence records found.</div>';
+      } else {
+        evidenceKeys.forEach((indKey, idx) => {
+          const indEv = evidenceMap[indKey];
+          const item = document.createElement('div');
+          item.className = 'accordion-item';
+
+          const txns = indEv.transactions || [];
+          let tableRows = '';
+          txns.forEach(tx => {
+            tableRows += `
+              <tr>
+                <td class="td-mono">${tx.row_id}</td>
+                <td class="td-mono">${tx.sender}</td>
+                <td class="td-mono">${tx.receiver}</td>
+                <td class="td-amt">₹${Number(tx.amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                <td class="td-mono" style="font-size: 11px;">${tx.timestamp}</td>
+                <td style="color: var(--text-muted); font-size: 11px;">${tx.reason || ''}</td>
+                <td><button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px;" onclick="loadTraceForTxn(${tx.row_id})">Trace</button></td>
+              </tr>
+            `;
+          });
+
+          item.innerHTML = `
+            <div class="accordion-header" onclick="toggleAccordion('acc-${indKey}')">
+              <div class="accordion-title">
+                <span>▶ ${indKey}</span>
+                <span class="accordion-badge">${indEv.summary || `${txns.length} records`}</span>
+              </div>
+              <div style="font-size: 11px; color: var(--text-dim);">Total contributing: ${indEv.total_contributing || txns.length}</div>
+            </div>
+            <div class="accordion-body ${idx === 0 ? 'open' : ''}" id="acc-${indKey}">
+              <div class="table-container" style="margin-bottom: 0;">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Row ID</th>
+                      <th>Sender</th>
+                      <th>Receiver</th>
+                      <th>Amount (INR)</th>
+                      <th>Timestamp</th>
+                      <th>Forensic Basis</th>
+                      <th>Graph</th>
+                    </tr>
+                  </thead>
+                  <tbody>${tableRows || '<tr><td colspan="7">No transactions</td></tr>'}</tbody>
+                </table>
+              </div>
+            </div>
+          `;
+          evidenceContainer.appendChild(item);
+        });
+      }
+
+      // 8. Populate Trace Selector and load Initial Trace Graph
+      populateTraceSelector(obsPaths, evidenceMap);
+    }
+
+    // Toggle Accordion Panels
+    function toggleAccordion(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.classList.toggle('open');
+      }
+    }
+
+    // Populate Trace Selector
+    function populateTraceSelector(obsPaths, evidenceMap) {
+      const sel = document.getElementById('trace-row-select');
+      sel.innerHTML = '';
+
+      const rowIds = new Set();
+      obsPaths.forEach(p => {
+        if (p.in_row_id) rowIds.add(p.in_row_id);
+        if (p.out_row_id) rowIds.add(p.out_row_id);
+      });
+
+      Object.values(evidenceMap).forEach(ev => {
+        (ev.transactions || []).forEach(tx => rowIds.add(tx.row_id));
+      });
+
+      if (rowIds.size === 0) {
+        sel.innerHTML = '<option value="">No candidate row_ids</option>';
+        renderEmptyGraph();
+        return;
+      }
+
+      rowIds.forEach(rid => {
+        const opt = document.createElement('option');
+        opt.value = rid;
+        opt.innerText = `Row ${rid}`;
+        sel.appendChild(opt);
+      });
+
+      // Load trace for first row_id
+      const firstRow = Array.from(rowIds)[0];
+      loadTraceForTxn(firstRow);
+    }
+
+    function onTraceSelectChange() {
+      const sel = document.getElementById('trace-row-select');
+      const rid = sel.value;
+      if (rid) loadTraceForTxn(Number(rid));
+    }
+
+    // Fetch and Render Trace Graph
+    async function loadTraceForTxn(rowId) {
+      document.getElementById('active-trace-tag').innerText = `Row ID: ${rowId}`;
+      const sel = document.getElementById('trace-row-select');
+      if (sel) sel.value = rowId;
+
+      try {
+        const resp = await fetch(`${API_BASE}/api/trace/${rowId}?max_hops=3&cap=5`);
+        if (!resp.ok) throw new Error('Trace API error');
+        currentTraceData = await resp.json();
+
+        document.getElementById('trace-disclaimer').innerText = currentTraceData.disclaimer || 'All identified paths represent possible onward flow only.';
+        renderCytoscapeGraph(currentTraceData);
+      } catch (err) {
+        console.error('Failed to load trace graph:', err);
+        renderEmptyGraph(`Unable to trace row_id ${rowId}`);
+      }
+    }
+
+    // Cytoscape Directed Graph Renderer
+    function renderCytoscapeGraph(traceData) {
+      const container = document.getElementById('graph-container');
+      
+      const elements = [];
+      const nodeSet = new Set();
+      const pivotAcc = currentAccountData ? currentAccountData.account_id : '';
+
+      // Collect all nodes and edges from returned paths
+      const paths = traceData.paths || [];
+
+      if (paths.length === 0 && traceData.start_transaction) {
+        // Single starting transaction edge
+        const st = traceData.start_transaction;
+        if (!nodeSet.has(st.sender_account)) {
+          nodeSet.add(st.sender_account);
+          elements.push({ data: { id: st.sender_account, label: st.sender_account, isPivot: st.sender_account === pivotAcc } });
+        }
+        if (!nodeSet.has(st.receiver_account)) {
+          nodeSet.add(st.receiver_account);
+          elements.push({ data: { id: st.receiver_account, label: st.receiver_account, isPivot: st.receiver_account === pivotAcc } });
+        }
+        elements.push({
+          data: {
+            id: `edge-${st.row_id}`,
+            source: st.sender_account,
+            target: st.receiver_account,
+            amount: `₹${Number(st.amount).toLocaleString('en-IN')}`,
+            label: `₹${Number(st.amount).toLocaleString('en-IN')}`
+          }
+        });
+      } else {
+        paths.forEach(p => {
+          (p.edges || []).forEach(e => {
+            const u = e.from_account;
+            const v = e.to_account;
+            if (!nodeSet.has(u)) {
+              nodeSet.add(u);
+              elements.push({ data: { id: u, label: u, isPivot: u === pivotAcc } });
+            }
+            if (!nodeSet.has(v)) {
+              nodeSet.add(v);
+              elements.push({ data: { id: v, label: v, isPivot: v === pivotAcc } });
+            }
+            const edgeId = `e-${e.row_id}-${u}-${v}`;
+            if (!elements.some(item => item.data.id === edgeId)) {
+              elements.push({
+                data: {
+                  id: edgeId,
+                  source: u,
+                  target: v,
+                  amount: `₹${Number(e.amount).toLocaleString('en-IN')}`,
+                  label: `₹${Number(e.amount).toLocaleString('en-IN')} (${e.payment_mode || 'TXN'})`
+                }
+              });
+            }
+          });
+        });
+      }
+
+      // Check if Cytoscape library loaded
+      if (typeof cytoscape === 'undefined') {
+        renderFallbackSvgGraph(elements);
+        return;
+      }
+
+      if (cy) {
+        cy.destroy();
+      }
+
+      cy = cytoscape({
+        container: container,
+        elements: elements,
+        style: [
+          {
+            selector: 'node',
+            style: {
+              'background-color': '#1e293b',
+              'border-width': 2,
+              'border-color': '#38bdf8',
+              'label': 'data(label)',
+              'color': '#f8fafc',
+              'font-size': '11px',
+              'font-family': 'monospace',
+              'text-valign': 'center',
+              'text-halign': 'center',
+              'width': 120,
+              'height': 36,
+              'shape': 'roundrectangle'
+            }
+          },
+          {
+            selector: 'node[?isPivot]',
+            style: {
+              'background-color': '#0284c7',
+              'border-color': '#e0f2fe',
+              'border-width': 3,
+              'font-weight': 'bold'
+            }
+          },
+          {
+            selector: 'edge',
+            style: {
+              'width': 2,
+              'line-color': '#475569',
+              'target-arrow-color': '#38bdf8',
+              'target-arrow-shape': 'triangle',
+              'curve-style': 'bezier',
+              'label': 'data(label)',
+              'font-size': '10px',
+              'color': '#94a3b8',
+              'text-rotation': 'autorotate',
+              'text-margin-y': -8,
+              'font-family': 'monospace'
+            }
+          }
+        ],
+        layout: {
+          name: 'breadthfirst',
+          directed: true,
+          padding: 30,
+          spacingFactor: 1.5
+        }
+      });
+    }
+
+    // Graph Controls
+    function graphFit() { if (cy) cy.fit(); }
+    function graphZoom(factor) { if (cy) cy.zoom(cy.zoom() * factor); }
+    function graphReset() { if (cy) { cy.fit(); cy.center(); } }
+
+    function renderEmptyGraph(msg = 'No transaction graph paths to display.') {
+      const container = document.getElementById('graph-container');
+      container.innerHTML = `<div style="display:flex;height:100%;align-items:center;justify-content:center;color:var(--text-dim);font-size:13px;">${msg}</div>`;
+    }
+
+    function renderFallbackSvgGraph(elements) {
+      const container = document.getElementById('graph-container');
+      container.innerHTML = `
+        <div style="padding:20px;color:var(--text-muted);font-family:var(--font-mono);font-size:12px;">
+          <strong>Transaction Flow Ledger:</strong><br>
+          ${elements.filter(e => e.data.source).map(e => `<div>${e.data.source} ➔ ${e.data.target} [${e.data.label}]</div>`).join('')}
+        </div>
+      `;
+    }
+
+    // View Navigation
+    function showLandingView() {
+      document.getElementById('investigation-view').style.display = 'none';
+      document.getElementById('error-view').style.display = 'none';
+      document.getElementById('landing-view').style.display = 'block';
+      document.getElementById('btn-pdf-export').style.display = 'none';
+    }
+
+    function showErrorView(title, desc) {
+      document.getElementById('investigation-view').style.display = 'none';
+      document.getElementById('landing-view').style.display = 'none';
+      document.getElementById('error-view').style.display = 'block';
+      document.getElementById('error-title').innerText = title;
+      document.getElementById('error-desc').innerText = desc;
+      document.getElementById('btn-pdf-export').style.display = 'none';
+    }
+
+    // Client-Side PDF Report Generation
+    function exportPdfReport() {
+      if (!currentAccountData || !currentExplainData) {
+        alert('Please select an account before generating a report.');
+        return;
+      }
+
+      const accId = currentAccountData.account_id;
+      const ctx = currentExplainData.context || {};
+      const metrics = currentAccountData.metrics || ctx.account_summary || {};
+
+      // Fill Printable Dossier Template
+      document.getElementById('pdf-date').innerText = new Date().toISOString();
+      document.getElementById('pdf-account-id').innerText = accId;
+      document.getElementById('pdf-score').innerText = `${currentAccountData.risk_score} / 100`;
+      document.getElementById('pdf-score-summary').innerText = currentAccountData.risk_score === 0 
+        ? 'Account evaluated with baseline distribution. No behavioral indicators matched.' 
+        : `Deterministic score derived from ${currentAccountData.matched_indicators.length} matched pattern indicators.`;
+
+      // Indicators
+      const indTbody = document.getElementById('pdf-indicators-tbody');
+      indTbody.innerHTML = '';
+      (currentAccountData.matched_indicators || []).forEach(i => {
+        indTbody.innerHTML += `
+          <tr>
+            <td><strong>${i.indicator}</strong></td>
+            <td>+${i.contribution} pts</td>
+            <td>${i.basis || 'Configured pattern envelope met'}</td>
+          </tr>
+        `;
+      });
+      if (!currentAccountData.matched_indicators || currentAccountData.matched_indicators.length === 0) {
+        indTbody.innerHTML = '<tr><td colspan="3">no indicators matched</td></tr>';
+      }
+
+      // Metrics
+      const metTbody = document.getElementById('pdf-metrics-tbody');
+      metTbody.innerHTML = `
+        <tr><td><strong>In-Degree:</strong> ${metrics.in_degree || 0}</td><td><strong>Out-Degree:</strong> ${metrics.out_degree || 0}</td></tr>
+        <tr><td><strong>Total Inflow:</strong> ₹${(metrics.in_amount || metrics.total_incoming_amount || 0).toLocaleString('en-IN')}</td><td><strong>Total Outflow:</strong> ₹${(metrics.out_amount || metrics.total_outgoing_amount || 0).toLocaleString('en-IN')}</td></tr>
+        <tr><td><strong>Out/In Amount Ratio:</strong> ${metrics.out_in_ratio !== null ? Number(metrics.out_in_ratio).toFixed(4) : 'N/A'}</td><td><strong>Largest Inflow:</strong> ₹${(metrics.largest_in_amount || 0).toLocaleString('en-IN')}</td></tr>
+      `;
+
+      // Explanation
+      document.getElementById('pdf-explanation').innerText = currentExplainData.explanation || 'N/A';
+
+      // Observed Paths
+      const pTbody = document.getElementById('pdf-paths-tbody');
+      pTbody.innerHTML = '';
+      (ctx.observed_paths || []).forEach(p => {
+        pTbody.innerHTML += `
+          <tr>
+            <td>${p.in_row_id}</td>
+            <td>${p.out_row_id}</td>
+            <td>${p.source_account} ➔ ${p.pivot_account} ➔ ${p.destination_account}</td>
+            <td>₹${Number(p.in_amount).toLocaleString('en-IN')}</td>
+            <td>₹${Number(p.out_amount).toLocaleString('en-IN')}</td>
+            <td>${p.amount_ratio}</td>
+            <td>${p.time_gap_seconds}s</td>
+          </tr>
+        `;
+      });
+      if (!ctx.observed_paths || ctx.observed_paths.length === 0) {
+        pTbody.innerHTML = '<tr><td colspan="7">No observed paths recorded.</td></tr>';
+      }
+
+      // Export using html2pdf if loaded, else fallback to print
+      const el = document.getElementById('printable-report');
+      el.style.display = 'block';
+
+      if (typeof html2pdf !== 'undefined') {
+        const opt = {
+          margin: 10,
+          filename: `Abhedya_Chakra_Dossier_${accId}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(el).save().then(() => {
+          el.style.display = 'none';
+        }).catch(() => {
+          window.print();
+          el.style.display = 'none';
+        });
+      } else {
+        window.print();
+        el.style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>

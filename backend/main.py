@@ -87,6 +87,107 @@ def get_transactions(
         "transactions": txns
     }
 
+# =============================================================================
+# Phase 2 & 3: Detection, Explanation & Forensics API Endpoints
+# =============================================================================
+
+from .detect import DetectionEngine
+from .context import build_context
+from .explain_template import generate_explanation
+from .guardrails import validate
+from .trace import trace_onward_flow
+
+_detection_engine: Optional[DetectionEngine] = None
+
+def get_engine() -> DetectionEngine:
+    global _detection_engine
+    if _detection_engine is None:
+        _detection_engine = DetectionEngine()
+    return _detection_engine
+
+@app.get("/api/detect/{account_id}")
+def detect_account(account_id: str) -> Dict[str, Any]:
+    """
+    Computes deterministic 0-100 risk score and indicator-grouped evidence for an account.
+    """
+    if not account_exists(account_id):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Account '{account_id}' not found in transaction records."
+        )
+    engine = get_engine()
+    return engine.score_account(account_id)
+
+@app.get("/api/explain/{account_id}")
+def explain_account(account_id: str) -> Dict[str, Any]:
+    """
+    Constructs self-contained evidence context, generates deterministic explanation,
+    and runs grounded guardrail validation.
+    """
+    if not account_exists(account_id):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Account '{account_id}' not found in transaction records."
+        )
+    context = build_context(account_id)
+    explanation = generate_explanation(context)
+    guardrail_result = validate(explanation, context)
+
+    return {
+        "account_id": account_id,
+        "risk_score": context.get("risk_score", 0),
+        "explanation": explanation,
+        "guardrail_status": guardrail_result,
+        "context": context
+    }
+
+@app.get("/api/trace/{row_id}")
+def trace_transaction(
+    row_id: int,
+    max_hops: int = Query(4, ge=1, le=4, description="Max onward hops (1 to 4)"),
+    cap: Optional[int] = Query(None, description="Frontier branch cap per hop")
+) -> Dict[str, Any]:
+    """
+    Traces possible onward flow graph from an explicit starting transaction row_id.
+    """
+    try:
+        trace_result = trace_onward_flow(start_row_id=row_id, max_hops=max_hops, cap=cap)
+        return trace_result
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Trace traversal error: {str(e)}"
+        )
+
+@app.get("/api/flagged")
+def list_flagged_accounts(
+    min_score: int = Query(40, ge=0, le=100, description="Minimum risk score filter"),
+    limit: int = Query(50, ge=1, le=500, description="Max accounts to return")
+) -> Dict[str, Any]:
+    """
+    Retrieves highest-risk accounts meeting or exceeding the minimum score threshold.
+    """
+    engine = get_engine()
+    all_scores = engine.score_all_accounts_fast()
+    filtered = [a for a in all_scores if a["risk_score"] >= min_score]
+    filtered.sort(key=lambda x: -x["risk_score"])
+
+    return {
+        "filter_min_score": min_score,
+        "total_matching": len(filtered),
+        "returned_count": min(len(filtered), limit),
+        "accounts": filtered[:limit]
+    }
+
+# Mount static frontend dashboard
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+
+_frontend_dir = Path(__file__).resolve().parent.parent / "frontend"
+if _frontend_dir.exists():
+    app.mount("/dashboard", StaticFiles(directory=str(_frontend_dir), html=True), name="dashboard")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("backend.main:app", host="127.0.0.1", port=8000, reload=True)
+

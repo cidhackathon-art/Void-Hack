@@ -1,6 +1,5 @@
-# Operation Abhedya-Chakra — Central System Configuration
-# Phase 2 - Step 0: Data Hardening Baseline
-# Note: Detection thresholds are NOT invented or guessed. Unknown values are explicitly set to null.
+# Operation Abhedya-Chakra -- Central System Configuration
+# Phase 2 - Step 2 FIX: Detection, Risk Score & Evidence Engine
 
 paths:
   raw_csv: "VoidHacks8_MuleAccount_2M_Transactions.csv"
@@ -22,14 +21,56 @@ dataset_meta:
     - "IP_Address"
     - "Device_Type"
 
-# Future detection thresholds (Must NOT be invented; set to null until Phase 2 empirical validation)
-detection_thresholds:
-  pass_through: null
-  fan_out: null
-  fan_in: null
-  amount_matching: null
-  hop_traversal: null
-  suspicious_indicators: null
+# Empirically measured detection cutoffs from Step 1D and Step 2A
+# Rule: Do not use account-ID patterns or narration text.
+detection_indicators:
+  pass_through:
+    source_file: "data/measurements_step2a.json"
+    basis: "129-account marker group measured out/in cumulative amount ratio envelope = 0.9800 plus +/-0.005 float tolerance"
+    min_ratio: 0.9750
+    max_ratio: 0.9850
+    weight: 30
+    design_choice: true
+
+  fan_out:
+    source_file: "data/measurements_step2a.json"
+    basis: "129-account marker group measured in-degree [1, 8], out-degree [3, 33], distinct receivers [3, 32], out_degree > in_degree"
+    min_out_degree: 3
+    max_in_degree: 8
+    weight: 20
+    design_choice: true
+
+  fast_pass_through:
+    source_file: "data/measurements_step2a.json"
+    basis: "Amount-weighted forwarding on account's largest incoming transaction: >= 50% forwarded within 900s window (selectivity: keeps all 129, only 298 non-group matches)"
+    window_seconds: 900
+    min_forward_share: 0.50
+    weight: 20
+    design_choice: true
+
+  rare_infrastructure:
+    source_file: "data/measurements_step2a.json"
+    basis: "Merged 100% overlapping rare device types (Linux_Script, Web_Emulator) and subnets (185.*, 194.*)"
+    devices:
+      - "Linux_Script"
+      - "Web_Emulator"
+    ip_prefixes:
+      - "185."
+      - "194."
+    weight: 30
+    design_choice: true
+
+  sink:
+    source_file: "data/measurements_step2a.json"
+    basis: "385 terminal accounts receive incoming transactions with strictly 0 outgoing transactions across dataset"
+    min_in_degree: 1
+    max_out_degree: 0
+    weight: 40
+    design_choice: true
+
+evidence:
+  top_n_per_indicator: 5
+  design_choice: true
 
 server:
   host: "127.0.0.1"

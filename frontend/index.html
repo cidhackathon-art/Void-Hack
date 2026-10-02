@@ -895,8 +895,17 @@
         <p class="hero-desc">
           Auditable forensic pattern detection on large-scale banking ledgers. Identifies rapid pass-through transit accounts, synthetic structuring envelopes, fan-out dispersal topologies, and infrastructure correlation.
         </p>
+        <div style="display: flex; gap: 12px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap;">
+          <button class="btn" id="btn-judge-demo" style="background: linear-gradient(135deg, #ef4444, #dc2626); font-weight: 700; padding: 10px 22px; font-size: 13px; box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35); border: none; cursor: pointer;" onclick="searchAccount('SBIN10000435')">
+            ▶ Start Judge Demo (SBIN10000435)
+          </button>
+          <button class="btn btn-secondary" id="btn-clean-demo" style="border-color: #10b981; color: #6ee7b7; padding: 10px 22px; font-size: 13px; font-weight: 600; cursor: pointer;" onclick="searchAccount('ICIC10014001')">
+            Compare Clean Account (0)
+          </button>
+        </div>
         <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Quick Investigation Samples by Risk Tier</div>
         <div class="quick-chips" id="quick-samples-chips">
+          <span class="chip" style="border-color: #ef4444; color: #f87171; font-weight: 600;" onclick="searchAccount('SBIN10000435')">SBIN10000435 (High • 100)</span>
           <span class="chip" style="border-color: #ef4444; color: #f87171;" onclick="searchAccount('AIRP10000312')">AIRP10000312 (High • 100)</span>
           <span class="chip" style="border-color: #f97316; color: #fb923c;" onclick="searchAccount('SBIN10000971')">SBIN10000971 (Med-High • 50)</span>
           <span class="chip" style="border-color: #f59e0b; color: #fbbf24;" onclick="searchAccount('AIRP10001351')">AIRP10001351 (Medium • 40)</span>
@@ -967,6 +976,18 @@
             <div class="score-caption">Deterministic Risk Score</div>
             <div id="score-val" class="score-num score-high">100 / 100</div>
             <div id="score-status-text" class="score-subtext">All 4 Behavioral Pattern Indicators Matched</div>
+          </div>
+
+          <!-- Why This Account Was Flagged Card -->
+          <div class="panel" id="why-flagged-card" style="margin-bottom: 16px;">
+            <div class="panel-header" style="background: rgba(15, 23, 42, 0.6);">
+              <div class="panel-title" style="display: flex; align-items: center; gap: 8px;">
+                <span>🎯 Why This Account Was Flagged</span>
+              </div>
+            </div>
+            <div class="panel-body" id="why-flagged-body">
+              <!-- Rendered dynamically -->
+            </div>
           </div>
 
           <!-- Indicators Panel -->
@@ -1477,6 +1498,53 @@
         document.getElementById('score-status-text').innerText = 'No Indicators Matched (Baseline)';
       }
 
+      // 1b. Why This Account Was Flagged Card
+      const whyCardBody = document.getElementById('why-flagged-body');
+      if (whyCardBody) {
+        const evMap = detectData.evidence_by_indicator || ctx.evidence_by_indicator || {};
+        let totalEvRows = 0;
+        Object.values(evMap).forEach(v => {
+          if (Array.isArray(v)) totalEvRows += v.length;
+          else if (v && Array.isArray(v.transactions)) totalEvRows += (v.total_contributing || v.transactions.length);
+        });
+
+        if (score === 0) {
+          whyCardBody.innerHTML = `
+            <div style="padding: 4px 0; color: #10b981; font-weight: 600; font-size: 13px;">
+              ✓ Clean Account (Baseline Profile)
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-top: 4px;">
+              Zero behavioral indicators matched. Out/In flow ratio, timing, and counterparty volumes fall within standard operating baselines.
+            </div>
+            <div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px; font-family: var(--font-mono);">
+              <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Risk Score: <strong style="color: #10b981;">0 / 100</strong></div>
+              <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Indicators: <strong style="color: #10b981;">0 Active</strong></div>
+              <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">In/Out Txns: <strong>${metrics.in_degree || 0} in / ${metrics.out_degree || 0} out</strong></div>
+              <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Evidence Rows: <strong>0</strong></div>
+            </div>
+          `;
+        } else {
+          const indPills = (detectData.matched_indicators || []).map(i => 
+            `<span style="display: inline-block; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; padding: 2px 7px; border-radius: 4px; margin: 2px; font-size: 11px; font-family: var(--font-mono);">${i.indicator} (+${i.contribution} pts)</span>`
+          ).join(' ');
+
+          const ratioVal = metrics.out_in_ratio !== null && metrics.out_in_ratio !== undefined ? Number(metrics.out_in_ratio).toFixed(4) : 'N/A';
+
+          whyCardBody.innerHTML = `
+            <div style="font-size: 12px; color: var(--text-main); margin-bottom: 8px; line-height: 1.4;">
+              Deterministic pattern envelopes met across <strong>${(detectData.matched_indicators || []).length}</strong> indicators totaling <strong>${score} points</strong>:
+            </div>
+            <div style="margin-bottom: 10px;">${indPills}</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px; font-family: var(--font-mono);">
+              <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Risk Score: <strong style="color: #ef4444;">${score} / 100</strong></div>
+              <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Flow Ratio: <strong>${ratioVal}</strong></div>
+              <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">In/Out Txns: <strong>${metrics.in_degree || 0} in / ${metrics.out_degree || 0} out</strong></div>
+              <div style="background: var(--bg-dark); padding: 8px; border-radius: 4px;">Evidence Rows: <strong style="color: var(--accent-cyan);">${totalEvRows} rows</strong></div>
+            </div>
+          `;
+        }
+      }
+
       // 2. Matched Indicators List
       const indListEl = document.getElementById('indicator-list-container');
       indListEl.innerHTML = '';
@@ -1944,8 +2012,9 @@
         evTbody.innerHTML = '';
         const evObj = detectData.evidence_by_indicator || {};
         let evCount = 0;
-        for (const [indName, evList] of Object.entries(evObj)) {
-          (evList || []).slice(0, 5).forEach(row => {
+        for (const [indName, evVal] of Object.entries(evObj)) {
+          const txns = Array.isArray(evVal) ? evVal : ((evVal && Array.isArray(evVal.transactions)) ? evVal.transactions : []);
+          txns.slice(0, 5).forEach(row => {
             evCount++;
             evTbody.innerHTML += `
               <tr>
@@ -1954,7 +2023,7 @@
                 <td>${row.sender || 'N/A'}</td>
                 <td>${row.receiver || 'N/A'}</td>
                 <td>₹${Number(row.amount || 0).toLocaleString('en-IN')}</td>
-                <td><strong>${indName}:</strong> ${row.reason || 'Envelope matched'}</td>
+                <td><strong>${indName}:</strong> ${row.reason || (evVal && evVal.summary) || 'Envelope matched'}</td>
               </tr>
             `;
           });
@@ -2167,15 +2236,16 @@
 
       const evRows = [];
       const evObj = detectData.evidence_by_indicator || {};
-      for (const [indName, evList] of Object.entries(evObj)) {
-        (evList || []).slice(0, 5).forEach(row => {
+      for (const [indName, evVal] of Object.entries(evObj)) {
+        const txns = Array.isArray(evVal) ? evVal : ((evVal && Array.isArray(evVal.transactions)) ? evVal.transactions : []);
+        txns.slice(0, 5).forEach(row => {
           evRows.push([
             String(row.row_id || 'N/A'),
             String(row.timestamp || 'N/A'),
             String(row.sender || 'N/A'),
             String(row.receiver || 'N/A'),
             `INR ${Number(row.amount || 0).toLocaleString('en-IN')}`,
-            `${indName}: ${row.reason || 'Envelope matched'}`
+            `${indName}: ${row.reason || (evVal && evVal.summary) || 'Envelope matched'}`
           ]);
         });
       }
@@ -2246,7 +2316,11 @@
       });
 
       // Populate printable template in background
-      populatePrintableReportTemplate(accId, currentAccountData, currentExplainData);
+      try {
+        populatePrintableReportTemplate(accId, currentAccountData, currentExplainData);
+      } catch (err) {
+        console.warn('Error populating printable template:', err);
+      }
 
       // Method 1: Instant Vector PDF Download (jsPDF)
       try {

@@ -409,12 +409,20 @@
     }
 
     /* Interactive Graph Canvas */
-    #graph-container {
+    #graph-card-wrapper {
+      position: relative;
       width: 100%;
       height: 480px;
       background: #0d131f;
       border-radius: 6px;
-      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--card-border);
+    }
+
+    #graph-container {
+      width: 100%;
+      height: 100%;
+      background: #0d131f;
     }
 
     .graph-controls {
@@ -1083,13 +1091,14 @@
               </div>
             </div>
             <div class="panel-body" style="display: flex; flex-direction: column;">
-              <div id="graph-container">
+              <div id="graph-card-wrapper" style="position: relative; width: 100%; height: 480px; background: #0d131f; border-radius: 6px; overflow: hidden; border: 1px solid var(--card-border); transition: all 0.3s ease;">
                 <div class="graph-controls">
                   <button class="graph-btn" onclick="graphFit()">Fit View</button>
                   <button class="graph-btn" onclick="graphZoom(1.2)">+ Zoom</button>
                   <button class="graph-btn" onclick="graphZoom(0.8)">- Zoom</button>
                   <button class="graph-btn" onclick="graphReset()">Reset</button>
                 </div>
+                <div id="graph-container" style="width: 100%; height: 100%;"></div>
               </div>
 
               <!-- Trace Disclaimer Box -->
@@ -1735,7 +1744,7 @@
             <td class="td-amt">₹${Number(p.out_amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
             <td class="td-mono">${p.amount_ratio !== null ? Number(p.amount_ratio).toFixed(4) : 'N/A'}</td>
             <td class="td-mono">${p.time_gap_seconds}s</td>
-            <td><button class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick="loadTraceForTxn(${p.in_row_id})">Trace Flow</button></td>
+            <td><button class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick="loadTraceForTxn(${p.in_row_id}, this)">Trace Flow</button></td>
           `;
           pathsTbody.appendChild(tr);
         });
@@ -1766,7 +1775,7 @@
                 <td class="td-amt">₹${Number(tx.amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
                 <td class="td-mono" style="font-size: 11px;">${tx.timestamp}</td>
                 <td style="color: var(--text-muted); font-size: 11px;">${tx.reason || ''}</td>
-                <td><button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px;" onclick="loadTraceForTxn(${tx.row_id})">Trace</button></td>
+                <td><button class="btn btn-secondary" style="padding: 2px 6px; font-size: 10px;" onclick="loadTraceForTxn(${tx.row_id}, this)">Trace</button></td>
               </tr>
             `;
           });
@@ -1854,21 +1863,82 @@
     }
 
     // Fetch and Render Trace Graph
-    async function loadTraceForTxn(rowId) {
-      document.getElementById('active-trace-tag').innerText = `Row ID: ${rowId}`;
+    async function loadTraceForTxn(rowId, btnEl = null) {
+      if (!rowId) return;
+
+      const origBtnText = btnEl ? btnEl.innerHTML : '';
+      if (btnEl) {
+        btnEl.innerHTML = '<span>⏳ Tracing...</span>';
+        btnEl.style.borderColor = 'var(--accent-cyan)';
+      }
+
+      document.getElementById('active-trace-tag').innerText = `Row ID: ${rowId} (Tracing...)`;
       const sel = document.getElementById('trace-row-select');
-      if (sel) sel.value = rowId;
+      if (sel) {
+        let found = false;
+        for (let i = 0; i < sel.options.length; i++) {
+          if (sel.options[i].value == rowId) {
+            sel.selectedIndex = i;
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          const opt = document.createElement('option');
+          opt.value = rowId;
+          opt.innerText = `Row ${rowId}`;
+          sel.appendChild(opt);
+          sel.value = rowId;
+        }
+      }
 
       try {
         const resp = await fetch(`${API_BASE}/api/trace/${rowId}?max_hops=3&cap=5`);
-        if (!resp.ok) throw new Error('Trace API error');
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         currentTraceData = await resp.json();
 
+        const pathCount = (currentTraceData.paths || []).length;
+        document.getElementById('active-trace-tag').innerHTML = `Row ID: ${rowId} <span style="color:#38bdf8; font-weight:700;">(${pathCount} Paths)</span>`;
         document.getElementById('trace-disclaimer').innerText = currentTraceData.disclaimer || 'All identified paths represent possible onward flow only.';
+
         renderCytoscapeGraph(currentTraceData);
+
+        // Smoothly scroll user up to the graph
+        const graphCard = document.getElementById('graph-card-wrapper') || document.getElementById('graph-container');
+        if (graphCard) {
+          graphCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          graphCard.style.boxShadow = '0 0 25px rgba(56, 189, 248, 0.7)';
+          graphCard.style.borderColor = 'var(--accent-cyan)';
+          setTimeout(() => {
+            graphCard.style.boxShadow = '';
+            graphCard.style.borderColor = 'var(--card-border)';
+          }, 1800);
+        }
+
+        if (btnEl) {
+          btnEl.innerHTML = `<span>✓ Traced (${pathCount})</span>`;
+          btnEl.style.background = 'rgba(56, 189, 248, 0.2)';
+          btnEl.style.borderColor = 'var(--accent-cyan)';
+          btnEl.style.color = '#fff';
+          setTimeout(() => {
+            btnEl.innerHTML = origBtnText;
+            btnEl.style.background = '';
+            btnEl.style.borderColor = '';
+            btnEl.style.color = '';
+          }, 3000);
+        }
       } catch (err) {
         console.error('Failed to load trace graph:', err);
-        renderEmptyGraph(`Unable to trace row_id ${rowId}`);
+        document.getElementById('active-trace-tag').innerText = `Row ID: ${rowId} (Error)`;
+        renderEmptyGraph(`Unable to trace row_id ${rowId}: ${err.message}`);
+        if (btnEl) {
+          btnEl.innerHTML = '<span>✕ Error</span>';
+          btnEl.style.borderColor = '#ef4444';
+          setTimeout(() => {
+            btnEl.innerHTML = origBtnText;
+            btnEl.style.borderColor = '';
+          }, 2500);
+        }
       }
     }
 
@@ -1939,7 +2009,7 @@
       }
 
       if (cy) {
-        cy.destroy();
+        try { cy.destroy(); } catch (e) {}
       }
 
       cy = cytoscape({
@@ -1996,6 +2066,11 @@
           spacingFactor: 1.5
         }
       });
+
+      cy.ready(() => {
+        cy.resize();
+        cy.fit(undefined, 30);
+      });
     }
 
     // Graph Controls
@@ -2005,7 +2080,9 @@
 
     function renderEmptyGraph(msg = 'No transaction graph paths to display.') {
       const container = document.getElementById('graph-container');
-      container.innerHTML = `<div style="display:flex;height:100%;align-items:center;justify-content:center;color:var(--text-dim);font-size:13px;">${msg}</div>`;
+      if (container) {
+        container.innerHTML = `<div style="display:flex;height:100%;align-items:center;justify-content:center;color:var(--text-dim);font-size:13px;padding:20px;text-align:center;">${msg}</div>`;
+      }
     }
 
     function renderFallbackSvgGraph(elements) {

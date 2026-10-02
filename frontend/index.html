@@ -895,23 +895,30 @@
         <p class="hero-desc">
           Auditable forensic pattern detection on large-scale banking ledgers. Identifies rapid pass-through transit accounts, synthetic structuring envelopes, fan-out dispersal topologies, and infrastructure correlation.
         </p>
-        <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Quick Investigation Samples</div>
+        <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Quick Investigation Samples by Risk Tier</div>
         <div class="quick-chips" id="quick-samples-chips">
-          <span class="chip" onclick="searchAccount('AIRP10000312')">AIRP10000312 (Score 100)</span>
-          <span class="chip" onclick="searchAccount('AXIS10000397')">AXIS10000397 (Score 100)</span>
-          <span class="chip" onclick="searchAccount('SBIN10000305')">SBIN10000305 (Score 100)</span>
-          <span class="chip" onclick="searchAccount('ICIC10014001')">ICIC10014001 (Score 0)</span>
+          <span class="chip" style="border-color: #ef4444; color: #f87171;" onclick="searchAccount('AIRP10000312')">AIRP10000312 (High • 100)</span>
+          <span class="chip" style="border-color: #f97316; color: #fb923c;" onclick="searchAccount('SBIN10000971')">SBIN10000971 (Med-High • 50)</span>
+          <span class="chip" style="border-color: #f59e0b; color: #fbbf24;" onclick="searchAccount('AIRP10001351')">AIRP10001351 (Medium • 40)</span>
+          <span class="chip" style="border-color: #eab308; color: #fde047;" onclick="searchAccount('ICIC10023955')">ICIC10023955 (Low-Med • 30)</span>
+          <span class="chip" style="border-color: #38bdf8; color: #7dd3fc;" onclick="searchAccount('KKBK10006829')">KKBK10006829 (Low • 20)</span>
+          <span class="chip" style="border-color: #10b981; color: #6ee7b7;" onclick="searchAccount('ICIC10014001')">ICIC10014001 (Clean • 0)</span>
         </div>
       </div>
 
       <!-- Flagged Accounts Table -->
       <div class="panel">
-        <div class="panel-header">
+        <div class="panel-header" style="flex-wrap: wrap; gap: 10px;">
           <div class="panel-title">
-            <span>⚡ High-Score Flagged Accounts</span>
+            <span>⚡ Pattern-Flagged Accounts Ledger</span>
             <span class="badge" id="flagged-count-badge" style="background: rgba(239,68,68,0.2); color: #f87171; font-family: var(--font-mono); padding: 2px 8px; border-radius: 12px; font-size: 11px;">129 Matching Pattern</span>
           </div>
-          <div style="font-size: 12px; color: var(--text-dim);">Source: /api/flagged?min_score=100</div>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <span style="font-size: 11px; color: var(--text-dim); margin-right: 4px;">Filter Score:</span>
+            <button class="btn btn-secondary" id="fl-btn-all" style="padding: 3px 9px; font-size: 11px;" onclick="setFlaggedFilter(30)">Score ≥ 30</button>
+            <button class="btn btn-secondary" id="fl-btn-40" style="padding: 3px 9px; font-size: 11px;" onclick="setFlaggedFilter(40)">Score ≥ 40</button>
+            <button class="btn btn-secondary" id="fl-btn-100" style="padding: 3px 9px; font-size: 11px; background: rgba(239,68,68,0.2); border-color: #ef4444; color: #fff;" onclick="setFlaggedFilter(100)">Score 100 Only</button>
+          </div>
         </div>
         <div class="panel-body" style="padding: 0;">
           <div class="table-container" style="margin-bottom: 0;">
@@ -1342,32 +1349,58 @@
       }
     }
 
-    // Load Flagged Accounts for Landing View
-    async function loadFlaggedAccounts() {
+    // Score Filter and Loader for Flagged Ledger
+    let currentFlaggedFilter = 100;
+
+    function setFlaggedFilter(minScore) {
+      currentFlaggedFilter = minScore;
+      ['fl-btn-all', 'fl-btn-40', 'fl-btn-100'].forEach(id => {
+        const b = document.getElementById(id);
+        if (b) {
+          b.style.background = 'var(--card-bg)';
+          b.style.borderColor = 'var(--card-border)';
+          b.style.color = 'var(--text-main)';
+        }
+      });
+      const activeId = minScore === 30 ? 'fl-btn-all' : (minScore === 40 ? 'fl-btn-40' : 'fl-btn-100');
+      const activeBtn = document.getElementById(activeId);
+      if (activeBtn) {
+        activeBtn.style.background = 'rgba(56, 189, 248, 0.2)';
+        activeBtn.style.borderColor = 'var(--accent-cyan)';
+        activeBtn.style.color = '#fff';
+      }
+      loadFlaggedAccounts(minScore);
+    }
+
+    async function loadFlaggedAccounts(minScore = 100) {
       try {
-        const resp = await fetch(`${API_BASE}/api/flagged?min_score=100&limit=25`);
+        const resp = await fetch(`${API_BASE}/api/flagged?min_score=${minScore}&limit=35`);
         if (!resp.ok) throw new Error('Failed to load flagged accounts');
         const data = await resp.json();
 
-        document.getElementById('flagged-count-badge').innerText = `${data.total_matching} Accounts Identified`;
+        document.getElementById('flagged-count-badge').innerText = `${data.total_matching} Accounts (Score ≥ ${minScore})`;
         const tbody = document.getElementById('flagged-tbody');
         tbody.innerHTML = '';
 
         if (!data.accounts || data.accounts.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No high-risk accounts returned.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No accounts found matching this score threshold.</td></tr>';
           return;
         }
 
         data.accounts.forEach(acc => {
           const tr = document.createElement('tr');
-          const indicatorsHtml = acc.matched_indicator_names.map(name => 
-            `<span class="tech-tag" style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.25); color: #f87171;">${name}</span>`
+          const s = acc.risk_score;
+          const scoreColor = s >= 100 ? '#ef4444' : (s >= 50 ? '#f97316' : (s >= 40 ? '#f59e0b' : (s >= 30 ? '#eab308' : '#38bdf8')));
+          const badgeBg = s >= 100 ? 'rgba(239, 68, 68, 0.15)' : (s >= 50 ? 'rgba(249, 115, 22, 0.15)' : (s >= 40 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(234, 179, 8, 0.15)'));
+
+          const indicatorsHtml = (acc.matched_indicator_names || []).map(name => 
+            `<span class="tech-tag" style="background: ${badgeBg}; border-color: ${scoreColor}; color: ${scoreColor};">${name}</span>`
           ).join(' ');
 
           tr.innerHTML = `
             <td class="td-mono"><strong>${acc.account_id}</strong></td>
-            <td class="td-mono"><span style="color: #ef4444; font-weight: 700;">${acc.risk_score} / 100</span></td>
-            <td>${indicatorsHtml}</td>
+            <td class="td-mono"><span style="color: ${scoreColor}; font-weight: 700;">${acc.risk_score} / 100</span></td>
+            <td>${indicatorsHtml || '<span style="color: var(--text-dim); font-size: 11px;">no indicators matched</span>'}</td>
             <td><button class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;" onclick="searchAccount('${acc.account_id}')">Investigate →</button></td>
           `;
           tbody.appendChild(tr);

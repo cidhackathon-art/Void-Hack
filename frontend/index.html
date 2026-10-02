@@ -1218,9 +1218,37 @@
           
           <!-- Score Card -->
           <div class="score-card">
-            <div class="score-caption">Deterministic Risk Score</div>
+            <div class="score-caption">DETERMINISTIC FORENSIC SCORE</div>
             <div id="score-val" class="score-num score-high">100 / 100</div>
             <div id="score-status-text" class="score-subtext">Matches 4 measured indicators</div>
+          </div>
+
+          <!-- ML Anomaly Signal Card -->
+          <div class="panel" id="ml-anomaly-panel" style="margin-bottom: 16px; border: 1px solid rgba(168, 85, 247, 0.4); background: rgba(30, 27, 75, 0.35);">
+            <div class="panel-header" style="background: rgba(88, 28, 135, 0.25); display: flex; justify-content: space-between; align-items: center;">
+              <div class="panel-title" style="color: #d8b4fe; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
+                <span>🤖 ML ANOMALY SIGNAL</span>
+              </div>
+              <span id="ml-model-badge" class="badge" style="background: rgba(168, 85, 247, 0.2); color: #e9d5ff; font-size: 9.5px; border: 1px solid rgba(168, 85, 247, 0.4);">Isolation Forest</span>
+            </div>
+            <div class="panel-body" style="padding: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div>
+                  <div style="font-size: 10px; color: var(--text-dim); text-transform: uppercase;">Anomaly Score</div>
+                  <div id="ml-score-val" style="font-size: 20px; font-weight: 800; font-family: var(--font-mono); color: #c084fc;">--</div>
+                </div>
+                <div style="text-align: right;">
+                  <div style="font-size: 10px; color: var(--text-dim); text-transform: uppercase;">Dataset Percentile</div>
+                  <div id="ml-percentile-val" style="font-size: 14px; font-weight: 700; font-family: var(--font-mono); color: #7dd3fc;">--</div>
+                </div>
+              </div>
+              <div id="ml-level-badge" style="display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px; margin-bottom: 8px; background: rgba(147, 51, 234, 0.2); color: #e9d5ff; border: 1px solid rgba(147, 51, 234, 0.4);">
+                --
+              </div>
+              <div style="font-size: 10px; color: var(--text-dim); line-height: 1.4; border-top: 1px solid rgba(168, 85, 247, 0.2); padding-top: 6px;">
+                <span style="color: #c084fc; font-weight: 600;">Disclaimer:</span> Statistical deviation from learned baseline only; not a fraud determination.
+              </div>
+            </div>
           </div>
 
           <!-- Why This Account Was Flagged Card -->
@@ -1376,7 +1404,7 @@
         <div class="col-right">
           <div class="panel" style="height: 100%;">
             <div class="panel-header">
-              <div class="panel-title">Forensic Case Explanation</div>
+              <div class="panel-title">AI & Forensic Case Explanation</div>
             </div>
             <div class="panel-body" style="display: flex; flex-direction: column;">
               
@@ -2902,6 +2930,81 @@
 
       // 8. Populate Trace Selector and load Initial Trace Graph
       populateTraceSelector(obsPaths, evidenceMap);
+
+      // 9. Load Statistical ML Anomaly Signal (Unsupervised Isolation Forest)
+      loadMlAnomaly(detectData.account_id);
+    }
+
+    // ML Anomaly Signal Loader & Renderer
+    async function loadMlAnomaly(accId) {
+      renderMlAnomalyLoading();
+      try {
+        const resp = await fetch(`${API_BASE}/api/ml-anomaly/${encodeURIComponent(accId)}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const mlData = await resp.json();
+        renderMlAnomaly(mlData);
+      } catch (e) {
+        renderMlAnomalyFallback(e.message);
+      }
+    }
+
+    function renderMlAnomalyLoading() {
+      const scoreEl = document.getElementById('ml-score-val');
+      const levelEl = document.getElementById('ml-level-badge');
+      const pctEl = document.getElementById('ml-percentile-val');
+      if (scoreEl) scoreEl.innerText = 'Calculating...';
+      if (levelEl) {
+        levelEl.innerText = 'Analyzing baseline deviation...';
+        levelEl.style.background = 'rgba(147, 51, 234, 0.15)';
+        levelEl.style.color = '#d8b4fe';
+        levelEl.style.borderColor = 'rgba(147, 51, 234, 0.3)';
+      }
+      if (pctEl) pctEl.innerText = '--';
+    }
+
+    function renderMlAnomaly(mlData) {
+      const scoreEl = document.getElementById('ml-score-val');
+      const levelEl = document.getElementById('ml-level-badge');
+      const pctEl = document.getElementById('ml-percentile-val');
+      const modelEl = document.getElementById('ml-model-badge');
+      if (!scoreEl) return;
+
+      if (mlData && mlData.status === 'available') {
+        scoreEl.innerText = Number(mlData.ml_anomaly_score).toFixed(4);
+        pctEl.innerText = `${Number(mlData.ml_anomaly_percentile).toFixed(1)}th`;
+        levelEl.innerText = mlData.ml_anomaly_level;
+        if (modelEl) modelEl.innerText = mlData.model || 'Isolation Forest';
+
+        if (mlData.ml_anomaly_score >= 0.60) {
+          levelEl.style.background = 'rgba(239, 68, 68, 0.2)';
+          levelEl.style.color = '#fca5a5';
+          levelEl.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+        } else if (mlData.ml_anomaly_score >= 0.45) {
+          levelEl.style.background = 'rgba(245, 158, 11, 0.2)';
+          levelEl.style.color = '#fcd34d';
+          levelEl.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+        } else {
+          levelEl.style.background = 'rgba(34, 197, 94, 0.2)';
+          levelEl.style.color = '#86efac';
+          levelEl.style.borderColor = 'rgba(34, 197, 94, 0.4)';
+        }
+      } else {
+        renderMlAnomalyFallback();
+      }
+    }
+
+    function renderMlAnomalyFallback(errMsg = '') {
+      const scoreEl = document.getElementById('ml-score-val');
+      const levelEl = document.getElementById('ml-level-badge');
+      const pctEl = document.getElementById('ml-percentile-val');
+      if (scoreEl) scoreEl.innerText = 'N/A';
+      if (levelEl) {
+        levelEl.innerText = 'Signal Unavailable';
+        levelEl.style.background = 'rgba(100, 116, 139, 0.2)';
+        levelEl.style.color = '#94a3b8';
+        levelEl.style.borderColor = 'rgba(100, 116, 139, 0.4)';
+      }
+      if (pctEl) pctEl.innerText = '--';
     }
 
     // Toggle Accordion Panels

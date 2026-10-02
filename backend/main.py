@@ -100,6 +100,7 @@ from .explain_llm import generate_llm_explanation
 from .guardrails import validate
 from .trace import trace_onward_flow
 from .data_access import get_connected_accounts, get_transaction_by_row_id
+from .ml_anomaly import get_account_ml_anomaly
 
 _detection_engine: Optional[DetectionEngine] = None
 
@@ -185,6 +186,26 @@ def get_single_transaction(row_id: int) -> Dict[str, Any]:
             detail=f"Transaction with row_id {row_id} not found."
         )
     return txn
+
+@app.get("/api/ml-anomaly/{account_id}")
+def get_ml_anomaly(account_id: str) -> Dict[str, Any]:
+    """
+    Retrieves statistical ML Anomaly Signal for an account.
+    Unsupervised Isolation Forest measuring deviation from learned baseline.
+    Does NOT assert guilt or fraud.
+    """
+    if not account_exists(account_id):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Account '{account_id}' not found in transaction records."
+        )
+    res = get_account_ml_anomaly(account_id)
+    if res is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Account '{account_id}' not found in transaction records."
+        )
+    return res
 
 @app.get("/api/trace/{row_id}")
 def trace_transaction(

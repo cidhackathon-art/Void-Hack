@@ -920,13 +920,15 @@
         <div class="panel-header" style="flex-wrap: wrap; gap: 10px;">
           <div class="panel-title">
             <span>⚡ Pattern-Flagged Accounts Ledger</span>
-            <span class="badge" id="flagged-count-badge" style="background: rgba(239,68,68,0.2); color: #f87171; font-family: var(--font-mono); padding: 2px 8px; border-radius: 12px; font-size: 11px;">129 Matching Pattern</span>
+            <span class="badge" id="flagged-count-badge" style="background: rgba(239,68,68,0.2); color: #f87171; font-family: var(--font-mono); padding: 2px 8px; border-radius: 12px; font-size: 11px;">129 Accounts (Score = 100)</span>
           </div>
-          <div style="display: flex; gap: 6px; align-items: center;">
-            <span style="font-size: 11px; color: var(--text-dim); margin-right: 4px;">Filter Score:</span>
-            <button class="btn btn-secondary" id="fl-btn-all" style="padding: 3px 9px; font-size: 11px;" onclick="setFlaggedFilter(30)">Score ≥ 30</button>
-            <button class="btn btn-secondary" id="fl-btn-40" style="padding: 3px 9px; font-size: 11px;" onclick="setFlaggedFilter(40)">Score ≥ 40</button>
-            <button class="btn btn-secondary" id="fl-btn-100" style="padding: 3px 9px; font-size: 11px; background: rgba(239,68,68,0.2); border-color: #ef4444; color: #fff;" onclick="setFlaggedFilter(100)">Score 100 Only</button>
+          <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+            <span style="font-size: 11px; color: var(--text-dim); margin-right: 2px;">Tier Filter:</span>
+            <button class="btn btn-secondary" id="fl-btn-all" style="padding: 4px 10px; font-size: 11px;" onclick="setFlaggedTier('all')">All Flagged (1,393)</button>
+            <button class="btn btn-secondary" id="fl-btn-100" style="padding: 4px 10px; font-size: 11px; background: rgba(239,68,68,0.2); border-color: #ef4444; color: #fff;" onclick="setFlaggedTier(100)">Score 100 (129)</button>
+            <button class="btn btn-secondary" id="fl-btn-50" style="padding: 4px 10px; font-size: 11px;" onclick="setFlaggedTier(50)">Score 50 (243)</button>
+            <button class="btn btn-secondary" id="fl-btn-40" style="padding: 4px 10px; font-size: 11px;" onclick="setFlaggedTier(40)">Score 40 (385)</button>
+            <button class="btn btn-secondary" id="fl-btn-30" style="padding: 4px 10px; font-size: 11px;" onclick="setFlaggedTier(30)">Score 30 (636)</button>
           </div>
         </div>
         <div class="panel-body" style="padding: 0;">
@@ -944,6 +946,17 @@
                 <tr><td colspan="4" style="text-align: center; padding: 20px;">Loading flagged accounts from backend...</td></tr>
               </tbody>
             </table>
+          </div>
+          <!-- Pagination & Showing Status Footer -->
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: var(--bg-dark); border-top: 1px solid var(--card-border); font-size: 12px; flex-wrap: wrap; gap: 8px;">
+            <div id="flagged-showing-text" style="color: var(--text-muted); font-family: var(--font-mono);">
+              Showing 1 - 50 of 129 accounts
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button class="btn btn-secondary" id="fl-page-prev" style="padding: 3px 10px; font-size: 11px;" onclick="prevFlaggedPage()" disabled>← Prev</button>
+              <span id="fl-page-indicator" style="font-family: var(--font-mono); color: var(--text-dim); font-size: 11px;">Page 1 of 3</span>
+              <button class="btn btn-secondary" id="fl-page-next" style="padding: 3px 10px; font-size: 11px;" onclick="nextFlaggedPage()">Next →</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1371,11 +1384,20 @@
     }
 
     // Score Filter and Loader for Flagged Ledger
-    let currentFlaggedFilter = 100;
+    let currentFlaggedTier = 100; // 'all', 100, 50, 40, 30
+    let currentFlaggedPage = 1;
+    const FLAGGED_PAGE_SIZE = 50;
+    let totalFlaggedMatching = 0;
 
     function setFlaggedFilter(minScore) {
-      currentFlaggedFilter = minScore;
-      ['fl-btn-all', 'fl-btn-40', 'fl-btn-100'].forEach(id => {
+      if (minScore === 30) setFlaggedTier('all');
+      else setFlaggedTier(minScore);
+    }
+
+    function setFlaggedTier(tier) {
+      currentFlaggedTier = tier;
+      currentFlaggedPage = 1;
+      ['fl-btn-all', 'fl-btn-100', 'fl-btn-50', 'fl-btn-40', 'fl-btn-30'].forEach(id => {
         const b = document.getElementById(id);
         if (b) {
           b.style.background = 'var(--card-bg)';
@@ -1383,23 +1405,84 @@
           b.style.color = 'var(--text-main)';
         }
       });
-      const activeId = minScore === 30 ? 'fl-btn-all' : (minScore === 40 ? 'fl-btn-40' : 'fl-btn-100');
+      const activeId = tier === 'all' ? 'fl-btn-all' : `fl-btn-${tier}`;
       const activeBtn = document.getElementById(activeId);
       if (activeBtn) {
-        activeBtn.style.background = 'rgba(56, 189, 248, 0.2)';
-        activeBtn.style.borderColor = 'var(--accent-cyan)';
-        activeBtn.style.color = '#fff';
+        if (tier === 100) {
+          activeBtn.style.background = 'rgba(239, 68, 68, 0.2)';
+          activeBtn.style.borderColor = '#ef4444';
+          activeBtn.style.color = '#fff';
+        } else {
+          activeBtn.style.background = 'rgba(56, 189, 248, 0.2)';
+          activeBtn.style.borderColor = 'var(--accent-cyan)';
+          activeBtn.style.color = '#fff';
+        }
       }
-      loadFlaggedAccounts(minScore);
+      loadFlaggedAccounts();
     }
 
-    async function loadFlaggedAccounts(minScore = 100) {
+    function prevFlaggedPage() {
+      if (currentFlaggedPage > 1) {
+        currentFlaggedPage--;
+        loadFlaggedAccounts();
+      }
+    }
+
+    function nextFlaggedPage() {
+      const maxPages = Math.ceil(totalFlaggedMatching / FLAGGED_PAGE_SIZE) || 1;
+      if (currentFlaggedPage < maxPages) {
+        currentFlaggedPage++;
+        loadFlaggedAccounts();
+      }
+    }
+
+    async function loadFlaggedAccounts() {
       try {
-        const resp = await fetch(`${API_BASE}/api/flagged?min_score=${minScore}&limit=35`);
+        let url = `${API_BASE}/api/flagged?page=${currentFlaggedPage}&limit=${FLAGGED_PAGE_SIZE}`;
+        if (currentFlaggedTier === 'all') {
+          url += '&min_score=30';
+        } else {
+          url += `&exact_score=${currentFlaggedTier}`;
+        }
+
+        const resp = await fetch(url);
         if (!resp.ok) throw new Error('Failed to load flagged accounts');
         const data = await resp.json();
 
-        document.getElementById('flagged-count-badge').innerText = `${data.total_matching} Accounts (Score ≥ ${minScore})`;
+        totalFlaggedMatching = data.total_matching || 0;
+        const maxPages = Math.ceil(totalFlaggedMatching / FLAGGED_PAGE_SIZE) || 1;
+
+        // Update badge
+        const badgeLabel = currentFlaggedTier === 'all'
+          ? `${totalFlaggedMatching.toLocaleString()} All Flagged (Score ≥ 30)`
+          : `${totalFlaggedMatching.toLocaleString()} Accounts (Score = ${currentFlaggedTier})`;
+        document.getElementById('flagged-count-badge').innerText = badgeLabel;
+
+        // Update counts on buttons if summary provided
+        if (data.tier_summary) {
+          const ts = data.tier_summary;
+          const btnAll = document.getElementById('fl-btn-all');
+          if (btnAll) btnAll.innerText = `All Flagged (${(ts.total_flagged || 1393).toLocaleString()})`;
+          const b100 = document.getElementById('fl-btn-100');
+          if (b100) b100.innerText = `Score 100 (${ts.tier_100 || 129})`;
+          const b50 = document.getElementById('fl-btn-50');
+          if (b50) b50.innerText = `Score 50 (${ts.tier_50 || 243})`;
+          const b40 = document.getElementById('fl-btn-40');
+          if (b40) b40.innerText = `Score 40 (${ts.tier_40 || 385})`;
+          const b30 = document.getElementById('fl-btn-30');
+          if (b30) b30.innerText = `Score 30 (${ts.tier_30 || 636})`;
+        }
+
+        // Update showing & pagination text
+        const showingFrom = data.showing_from || 0;
+        const showingTo = data.showing_to || 0;
+        document.getElementById('flagged-showing-text').innerText = 
+          `Showing ${showingFrom.toLocaleString()} - ${showingTo.toLocaleString()} of ${totalFlaggedMatching.toLocaleString()} accounts`;
+
+        document.getElementById('fl-page-indicator').innerText = `Page ${currentFlaggedPage} of ${maxPages}`;
+        document.getElementById('fl-page-prev').disabled = currentFlaggedPage <= 1;
+        document.getElementById('fl-page-next').disabled = currentFlaggedPage >= maxPages;
+
         const tbody = document.getElementById('flagged-tbody');
         tbody.innerHTML = '';
 

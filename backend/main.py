@@ -161,16 +161,31 @@ def trace_transaction(
 
 @app.get("/api/flagged")
 def list_flagged_accounts(
-    min_score: int = Query(40, ge=0, le=100, description="Minimum risk score filter"),
-    limit: int = Query(50, ge=1, le=500, description="Max accounts to return")
+    min_score: int = Query(30, ge=0, le=100, description="Minimum risk score filter"),
+    max_score: Optional[int] = Query(None, ge=0, le=100, description="Maximum risk score filter"),
+    exact_score: Optional[int] = Query(None, ge=0, le=100, description="Exact risk score filter"),
+    page: int = Query(1, ge=1, description="Page number (1-based)"),
+    limit: int = Query(50, ge=1, le=1000, description="Max accounts to return per page")
 ) -> Dict[str, Any]:
     """
-    Retrieves highest-risk accounts meeting or exceeding the minimum score threshold.
+    Retrieves highest-risk accounts meeting score criteria (min_score, max_score, or exact_score)
+    with pagination support.
     """
     engine = get_engine()
     all_scores = engine.score_all_accounts_fast()
-    filtered = [a for a in all_scores if a["risk_score"] >= min_score]
-    filtered.sort(key=lambda x: -x["risk_score"])
+
+    if exact_score is not None:
+        filtered = [a for a in all_scores if a["risk_score"] == exact_score]
+    else:
+        filtered = [
+            a for a in all_scores
+            if a["risk_score"] >= min_score and (max_score is None or a["risk_score"] <= max_score)
+        ]
+
+    filtered.sort(key=lambda x: (-x["risk_score"], x["account_id"]))
+    total_matching = len(filtered)
+    start_idx = (page - 1) * limit
+    returned_accounts = filtered[start_idx : start_idx + limit]
 
     # Enrich returned accounts with matched indicator names
     indicator_map = [
@@ -180,17 +195,38 @@ def list_flagged_accounts(
         ("ind_rare", "rare_infrastructure"),
         ("ind_sink", "sink"),
     ]
-    returned_accounts = filtered[:limit]
     for acc in returned_accounts:
         if "matched_indicator_names" not in acc:
             acc["matched_indicator_names"] = [
                 name for flag, name in indicator_map if acc.get(flag)
             ]
 
+    # Exact tier totals across all accounts >= 30
+    c_100 = sum(1 for a in all_scores if a["risk_score"] == 100)
+    c_50 = sum(1 for a in all_scores if a["risk_score"] == 50)
+    c_40 = sum(1 for a in all_scores if a["risk_score"] == 40)
+    c_30 = sum(1 for a in all_scores if a["risk_score"] == 30)
+
+    showing_from = start_idx + 1 if total_matching > 0 and len(returned_accounts) > 0 else 0
+    showing_to = min(start_idx + len(returned_accounts), total_matching)
+
     return {
         "filter_min_score": min_score,
-        "total_matching": len(filtered),
-        "returned_count": min(len(filtered), limit),
+        "filter_max_score": max_score,
+        "filter_exact_score": exact_score,
+        "total_matching": total_matching,
+        "page": page,
+        "limit": limit,
+        "showing_from": showing_from,
+        "showing_to": showing_to,
+        "returned_count": len(returned_accounts),
+        "tier_summary": {
+            "tier_100": c_100,
+            "tier_50": c_50,
+            "tier_40": c_40,
+            "tier_30": c_30,
+            "total_flagged": c_100 + c_50 + c_40 + c_30
+        },
         "accounts": returned_accounts
     }
 

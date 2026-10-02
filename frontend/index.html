@@ -1414,7 +1414,19 @@
           const scoreColor = s >= 100 ? '#ef4444' : (s >= 50 ? '#f97316' : (s >= 40 ? '#f59e0b' : (s >= 30 ? '#eab308' : '#38bdf8')));
           const badgeBg = s >= 100 ? 'rgba(239, 68, 68, 0.15)' : (s >= 50 ? 'rgba(249, 115, 22, 0.15)' : (s >= 40 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(234, 179, 8, 0.15)'));
 
-          const indicatorsHtml = (acc.matched_indicator_names || []).map(name => 
+          // Extract indicator names from acc flags or matched_indicator_names
+          const indNames = [];
+          if (Array.isArray(acc.matched_indicator_names) && acc.matched_indicator_names.length > 0) {
+            indNames.push(...acc.matched_indicator_names);
+          } else {
+            if (acc.ind_pt) indNames.push('pass_through');
+            if (acc.ind_fo) indNames.push('fan_out');
+            if (acc.ind_fpt) indNames.push('fast_pass_through');
+            if (acc.ind_rare) indNames.push('rare_infrastructure');
+            if (acc.ind_sink) indNames.push('sink');
+          }
+
+          const indicatorsHtml = indNames.map(name => 
             `<span class="tech-tag" style="background: ${badgeBg}; border-color: ${scoreColor}; color: ${scoreColor};">${name}</span>`
           ).join(' ');
 

@@ -172,11 +172,26 @@ def list_flagged_accounts(
     filtered = [a for a in all_scores if a["risk_score"] >= min_score]
     filtered.sort(key=lambda x: -x["risk_score"])
 
+    # Enrich returned accounts with matched indicator names
+    indicator_map = [
+        ("ind_pt", "pass_through"),
+        ("ind_fo", "fan_out"),
+        ("ind_fpt", "fast_pass_through"),
+        ("ind_rare", "rare_infrastructure"),
+        ("ind_sink", "sink"),
+    ]
+    returned_accounts = filtered[:limit]
+    for acc in returned_accounts:
+        if "matched_indicator_names" not in acc:
+            acc["matched_indicator_names"] = [
+                name for flag, name in indicator_map if acc.get(flag)
+            ]
+
     return {
         "filter_min_score": min_score,
         "total_matching": len(filtered),
         "returned_count": min(len(filtered), limit),
-        "accounts": filtered[:limit]
+        "accounts": returned_accounts
     }
 
 # Mount static frontend dashboard

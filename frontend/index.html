@@ -923,6 +923,151 @@
         </div>
       </div>
 
+      <!-- Case Overview Card (Read-Only Multi-Layer Ledger Analysis) -->
+      <div class="panel" id="case-overview-panel" style="margin-bottom: 24px;">
+        <div class="panel-header" style="flex-wrap: wrap; gap: 10px;">
+          <div class="panel-title" style="display: flex; align-items: center; gap: 8px;">
+            <span>📋 Forensic Case Overview</span>
+            <span class="badge" style="background: rgba(56, 189, 248, 0.15); color: var(--accent-cyan); font-family: var(--font-mono); padding: 2px 8px; border-radius: 12px; font-size: 11px;">Read-Only Multi-Layer Analysis</span>
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">
+            Deterministic Columnar Ledger Aggregation
+          </div>
+        </div>
+        <div class="panel-body" style="padding: 16px;">
+          <!-- 3 Groups Metric Cards Grid -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 20px;">
+            
+            <!-- Layer 1 Card -->
+            <div style="background: var(--card-bg); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
+              <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #ef4444;"></div>
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <span style="font-size: 13px; font-weight: 700; color: #f87171; letter-spacing: 0.5px; text-transform: uppercase;">Layer 1</span>
+                  <span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #f87171; font-family: var(--font-mono); font-size: 11px; font-weight: 700;">Score 100</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-dim); margin-bottom: 12px;">Transit core matching all behavioral patterns</div>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
+                  <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px dashed var(--card-border); padding-bottom: 4px;">
+                    <span style="font-size: 11px; color: var(--text-muted);">Account Count</span>
+                    <span id="overview-l1-count" style="font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: #fff;">129</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px dashed var(--card-border); padding-bottom: 4px;">
+                    <span style="font-size: 11px; color: var(--text-muted);">Total Incoming INR</span>
+                    <span id="overview-l1-in" style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: #38bdf8;">₹8,47,66,804.55</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 2px;">
+                    <span style="font-size: 11px; color: var(--text-muted);">Total Outgoing INR</span>
+                    <span id="overview-l1-out" style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: #f87171;">₹8,30,71,468.52</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Layer 2 Card -->
+            <div style="background: var(--card-bg); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
+              <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #f59e0b;"></div>
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <span style="font-size: 13px; font-weight: 700; color: #fbbf24; letter-spacing: 0.5px; text-transform: uppercase;">Layer 2</span>
+                  <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; font-family: var(--font-mono); font-size: 11px; font-weight: 700;">Score ≠ 100</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-dim); margin-bottom: 12px;">Accounts with rare infrastructure indicators</div>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
+                  <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px dashed var(--card-border); padding-bottom: 4px;">
+                    <span style="font-size: 11px; color: var(--text-muted);">Account Count</span>
+                    <span id="overview-l2-count" style="font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: #fff;">559</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px dashed var(--card-border); padding-bottom: 4px;">
+                    <span style="font-size: 11px; color: var(--text-muted);">Total Incoming INR</span>
+                    <span id="overview-l2-in" style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: #38bdf8;">₹8,30,71,468.52</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 2px;">
+                    <span style="font-size: 11px; color: var(--text-muted);">Total Outgoing INR</span>
+                    <span id="overview-l2-out" style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: #f87171;">₹7,97,48,609.60</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sinks Card -->
+            <div style="background: var(--card-bg); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
+              <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #38bdf8;"></div>
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <span style="font-size: 13px; font-weight: 700; color: #7dd3fc; letter-spacing: 0.5px; text-transform: uppercase;">Sinks</span>
+                  <span class="badge" style="background: rgba(56, 189, 248, 0.2); color: #7dd3fc; font-family: var(--font-mono); font-size: 11px; font-weight: 700;">Score 40</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-dim); margin-bottom: 12px;">Terminal accounts with zero onward outgoing flow</div>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
+                  <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px dashed var(--card-border); padding-bottom: 4px;">
+                    <span style="font-size: 11px; color: var(--text-muted);">Account Count</span>
+                    <span id="overview-sinks-count" style="font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: #fff;">385</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px dashed var(--card-border); padding-bottom: 4px;">
+                    <span style="font-size: 11px; color: var(--text-muted);">Total Incoming INR</span>
+                    <span id="overview-sinks-in" style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: #38bdf8;">₹7,97,48,609.60</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 2px;">
+                    <span style="font-size: 11px; color: var(--text-muted);">Total Outgoing INR</span>
+                    <span id="overview-sinks-out" style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: #94a3b8;">₹0.00</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Ranked List Section Header -->
+          <div style="background: var(--bg-dark); border: 1px solid var(--card-border); border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <div style="font-size: 13px; font-weight: 700; color: #f1f5f9;">
+                Possible exposure (money that passed through; not proven loss)
+              </div>
+              <div style="font-size: 11px; color: var(--text-dim);">
+                Ranked flagged accounts by cumulative incoming amount
+              </div>
+            </div>
+            <div id="overview-showing-text" style="font-size: 11px; font-family: var(--font-mono); color: var(--text-muted);">
+              showing 1 - 10 of 1,393 accounts
+            </div>
+          </div>
+
+          <!-- Ranked Table -->
+          <div class="table-container" style="margin-bottom: 0;">
+            <table id="overview-ranked-table">
+              <thead>
+                <tr>
+                  <th style="width: 50px;">Rank</th>
+                  <th>Account ID</th>
+                  <th>Risk Score</th>
+                  <th>Total Incoming INR</th>
+                  <th>Total Outgoing INR</th>
+                  <th>In / Out Deg</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="overview-ranked-tbody">
+                <tr><td colspan="7" style="text-align: center; padding: 16px;">Loading ranked accounts...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Ranked Pagination Footer -->
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--bg-dark); border-top: 1px solid var(--card-border); font-size: 12px; flex-wrap: wrap; gap: 8px; border-radius: 0 0 6px 6px;">
+            <div id="overview-pagination-status" style="color: var(--text-muted); font-family: var(--font-mono); font-size: 11px;">
+              showing 1 - 10 of 1,393 accounts
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button class="btn btn-secondary" id="ov-page-prev" style="padding: 3px 10px; font-size: 11px;" onclick="prevOverviewPage()" disabled>← Prev</button>
+              <span id="ov-page-indicator" style="font-family: var(--font-mono); color: var(--text-dim); font-size: 11px;">Page 1 of 140</span>
+              <button class="btn btn-secondary" id="ov-page-next" style="padding: 3px 10px; font-size: 11px;" onclick="nextOverviewPage()">Next →</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
       <!-- Flagged Accounts Table -->
       <div class="panel">
         <div class="panel-header" style="flex-wrap: wrap; gap: 10px;">
@@ -1358,6 +1503,7 @@
     window.addEventListener('DOMContentLoaded', () => {
       checkBackendHealth();
       loadFlaggedAccounts();
+      loadCaseOverview();
 
       // Enter key on search box
       document.getElementById('acc-search-input').addEventListener('keypress', (e) => {
@@ -1532,6 +1678,123 @@
         });
       } catch (err) {
         document.getElementById('flagged-tbody').innerHTML = `<tr><td colspan="4" style="text-align: center; color: #f87171; padding: 20px;">Unable to load flagged accounts: ${err.message}</td></tr>`;
+      }
+    }
+
+    // Case Overview State and Loader
+    let currentOverviewPage = 1;
+    const OVERVIEW_PAGE_SIZE = 10;
+    let totalOverviewMatching = 0;
+
+    async function loadCaseOverview(page = 1) {
+      try {
+        currentOverviewPage = page;
+        const resp = await fetch(`${API_BASE}/api/case-overview?page=${currentOverviewPage}&limit=${OVERVIEW_PAGE_SIZE}`);
+        if (!resp.ok) throw new Error('Failed to load case overview');
+        const data = await resp.json();
+
+        // Populate 3 Groups cards
+        if (data.groups && Array.isArray(data.groups)) {
+          data.groups.forEach(g => {
+            const inFormatted = '₹' + Number(g.total_incoming_inr || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            const outFormatted = '₹' + Number(g.total_outgoing_inr || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            const countFormatted = Number(g.account_count || 0).toLocaleString();
+
+            if (g.group_id === 'layer_1') {
+              const elCount = document.getElementById('overview-l1-count');
+              const elIn = document.getElementById('overview-l1-in');
+              const elOut = document.getElementById('overview-l1-out');
+              if (elCount) elCount.innerText = countFormatted;
+              if (elIn) elIn.innerText = inFormatted;
+              if (elOut) elOut.innerText = outFormatted;
+            } else if (g.group_id === 'layer_2') {
+              const elCount = document.getElementById('overview-l2-count');
+              const elIn = document.getElementById('overview-l2-in');
+              const elOut = document.getElementById('overview-l2-out');
+              if (elCount) elCount.innerText = countFormatted;
+              if (elIn) elIn.innerText = inFormatted;
+              if (elOut) elOut.innerText = outFormatted;
+            } else if (g.group_id === 'sinks') {
+              const elCount = document.getElementById('overview-sinks-count');
+              const elIn = document.getElementById('overview-sinks-in');
+              const elOut = document.getElementById('overview-sinks-out');
+              if (elCount) elCount.innerText = countFormatted;
+              if (elIn) elIn.innerText = inFormatted;
+              if (elOut) elOut.innerText = outFormatted;
+            }
+          });
+        }
+
+        // Populate Ranked Table
+        const ranking = data.exposure_ranking || {};
+        totalOverviewMatching = ranking.total_matching || 0;
+        const maxPages = Math.ceil(totalOverviewMatching / OVERVIEW_PAGE_SIZE) || 1;
+        const accounts = ranking.accounts || [];
+        const tbody = document.getElementById('overview-ranked-tbody');
+
+        if (tbody) {
+          if (!accounts || accounts.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 16px; color: var(--text-dim);">No accounts found.</td></tr>';
+          } else {
+            tbody.innerHTML = accounts.map(acc => {
+              const s = acc.risk_score;
+              const scoreColor = s >= 100 ? '#ef4444' : (s >= 50 ? '#f97316' : (s >= 40 ? '#f59e0b' : (s >= 30 ? '#eab308' : '#38bdf8')));
+              const inFormatted = '₹' + Number(acc.total_incoming_inr || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+              const outFormatted = '₹' + Number(acc.total_outgoing_inr || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+              return `
+                <tr>
+                  <td class="td-mono" style="text-align: center; color: var(--text-dim);">${acc.rank}</td>
+                  <td class="td-mono">
+                    <a href="javascript:void(0)" onclick="searchAccount('${acc.account_id}')" style="color: var(--accent-cyan); font-weight: 600; text-decoration: none;">
+                      ${acc.account_id}
+                    </a>
+                  </td>
+                  <td class="td-mono"><span style="color: ${scoreColor}; font-weight: 700;">${acc.risk_score} / 100</span></td>
+                  <td class="td-mono" style="color: #38bdf8; font-weight: 600;">${inFormatted}</td>
+                  <td class="td-mono" style="color: #f87171;">${outFormatted}</td>
+                  <td class="td-mono" style="font-size: 11px; color: var(--text-muted);">${acc.in_degree} in / ${acc.out_degree} out</td>
+                  <td>
+                    <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;" onclick="searchAccount('${acc.account_id}')">
+                      Investigate →
+                    </button>
+                  </td>
+                </tr>
+              `;
+            }).join('');
+          }
+        }
+
+        // Update showing & pagination text
+        const showingFrom = ranking.showing_from || 0;
+        const showingTo = ranking.showing_to || 0;
+        const statusText = `showing ${showingFrom.toLocaleString()} - ${showingTo.toLocaleString()} of ${totalOverviewMatching.toLocaleString()} accounts`;
+        const elShowTop = document.getElementById('overview-showing-text');
+        const elShowBot = document.getElementById('overview-pagination-status');
+        if (elShowTop) elShowTop.innerText = statusText;
+        if (elShowBot) elShowBot.innerText = statusText;
+
+        const elPageInd = document.getElementById('ov-page-indicator');
+        const btnPrev = document.getElementById('ov-page-prev');
+        const btnNext = document.getElementById('ov-page-next');
+        if (elPageInd) elPageInd.innerText = `Page ${currentOverviewPage} of ${maxPages}`;
+        if (btnPrev) btnPrev.disabled = currentOverviewPage <= 1;
+        if (btnNext) btnNext.disabled = currentOverviewPage >= maxPages;
+
+      } catch (err) {
+        console.error('Error loading case overview:', err);
+      }
+    }
+
+    function prevOverviewPage() {
+      if (currentOverviewPage > 1) {
+        loadCaseOverview(currentOverviewPage - 1);
+      }
+    }
+
+    function nextOverviewPage() {
+      const maxPages = Math.ceil(totalOverviewMatching / OVERVIEW_PAGE_SIZE) || 1;
+      if (currentOverviewPage < maxPages) {
+        loadCaseOverview(currentOverviewPage + 1);
       }
     }
 

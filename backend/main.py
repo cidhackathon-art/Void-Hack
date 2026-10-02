@@ -1,7 +1,7 @@
 from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from .db import get_database_stats
+from .db import get_database_stats, get_db_cursor
 from .data_access import (
     account_exists,
     get_account_summary,
@@ -228,6 +228,196 @@ def list_flagged_accounts(
             "total_flagged": c_100 + c_50 + c_40 + c_30
         },
         "accounts": returned_accounts
+    }
+
+_case_overview_cache: Optional[Dict[str, Any]] = None
+
+def compute_case_overview() -> Dict[str, Any]:
+    global _case_overview_cache
+    if _case_overview_cache is not None:
+        return _case_overview_cache
+
+    with get_db_cursor(read_only=True) as con:
+        con.execute("""
+            CREATE TEMP VIEW IF NOT EXISTS temp_case_scored AS
+            WITH all_accounts AS (
+                SELECT Sender_Account as acc FROM transactions
+                UNION
+                SELECT Receiver_Account as acc FROM transactions
+            ),
+            in_stats AS (
+                SELECT 
+                    Receiver_Account as acc,
+                    count(*) as in_deg,
+                    sum(Amount) as in_amt
+                FROM transactions
+                GROUP BY Receiver_Account
+            ),
+            out_stats AS (
+                SELECT 
+                    Sender_Account as acc,
+                    count(*) as out_deg,
+                    sum(Amount) as out_amt,
+                    sum(CASE WHEN Device_Type IN ('Linux_Script', 'Web_Emulator') OR IP_Address LIKE '185.%' OR IP_Address LIKE '194.%' THEN 1 ELSE 0 END) as rare_infra_cnt
+                FROM transactions
+                GROUP BY Sender_Account
+            ),
+            max_in AS (
+                SELECT Receiver_Account as acc, Amount, Timestamp,
+                       row_number() over (partition by Receiver_Account order by Amount desc, Timestamp asc) as rn
+                FROM transactions
+            ),
+            largest_in AS (
+                SELECT acc, Amount as in_amt, Timestamp as in_ts
+                FROM max_in WHERE rn = 1
+            ),
+            window_outs AS (
+                SELECT 
+                    lin.acc,
+                    lin.in_amt,
+                    sum(tout.Amount) as sum_out
+                FROM largest_in lin
+                JOIN transactions tout
+                  ON lin.acc = tout.Sender_Account
+                 AND tout.Timestamp > lin.in_ts
+                 AND tout.Timestamp <= lin.in_ts + INTERVAL 900 SECOND
+                GROUP BY lin.acc, lin.in_amt
+            ),
+            scored AS (
+                SELECT 
+                    a.acc,
+                    coalesce(i.in_deg, 0) as in_deg,
+                    coalesce(o.out_deg, 0) as out_deg,
+                    coalesce(i.in_amt, 0.0) as in_amt,
+                    coalesce(o.out_amt, 0.0) as out_amt,
+                    CASE WHEN coalesce(o.out_amt, 0.0) / nullif(coalesce(i.in_amt, 0.0), 0) BETWEEN 0.9750 AND 0.9850 THEN 1 ELSE 0 END as ind_pt,
+                    CASE WHEN coalesce(o.out_deg, 0) >= 3 AND coalesce(i.in_deg, 0) <= 8 AND coalesce(o.out_deg, 0) > coalesce(i.in_deg, 0) THEN 1 ELSE 0 END as ind_fo,
+                    CASE WHEN wo.sum_out IS NOT NULL AND wo.sum_out >= 0.50 * lin.in_amt THEN 1 ELSE 0 END as ind_fpt,
+                    CASE WHEN coalesce(o.rare_infra_cnt, 0) > 0 THEN 1 ELSE 0 END as ind_rare,
+                    CASE WHEN coalesce(i.in_deg, 0) >= 1 AND coalesce(o.out_deg, 0) == 0 THEN 1 ELSE 0 END as ind_sink
+                FROM all_accounts a
+                LEFT JOIN in_stats i ON a.acc = i.acc
+                LEFT JOIN out_stats o ON a.acc = o.acc
+                LEFT JOIN largest_in lin ON a.acc = lin.acc
+                LEFT JOIN window_outs wo ON a.acc = wo.acc
+            )
+            SELECT *,
+            LEAST(100, CAST(ROUND(ind_pt * 30 + ind_fo * 20 + ind_fpt * 20 + ind_rare * 30 + ind_sink * 40) AS INT)) as risk_score
+            FROM scored
+        """)
+
+        groups_raw = con.execute("""
+            SELECT 
+                'layer_1' as grp_id,
+                'Layer 1' as name,
+                'Accounts with risk score 100' as desc,
+                COUNT(*) as account_count,
+                ROUND(SUM(in_amt), 2) as total_incoming_inr,
+                ROUND(SUM(out_amt), 2) as total_outgoing_inr
+            FROM temp_case_scored
+            WHERE risk_score = 100
+            UNION ALL
+            SELECT 
+                'layer_2' as grp_id,
+                'Layer 2' as name,
+                'Accounts with rare infrastructure (score != 100)' as desc,
+                COUNT(*) as account_count,
+                ROUND(SUM(in_amt), 2) as total_incoming_inr,
+                ROUND(SUM(out_amt), 2) as total_outgoing_inr
+            FROM temp_case_scored
+            WHERE ind_rare = 1 AND risk_score != 100
+            UNION ALL
+            SELECT 
+                'sinks' as grp_id,
+                'Sinks' as name,
+                'Terminal accounts with risk score 40' as desc,
+                COUNT(*) as account_count,
+                ROUND(SUM(in_amt), 2) as total_incoming_inr,
+                ROUND(SUM(out_amt), 2) as total_outgoing_inr
+            FROM temp_case_scored
+            WHERE risk_score = 40
+        """).fetchall()
+
+        groups = []
+        for g_id, g_name, g_desc, cnt, in_amt, out_amt in groups_raw:
+            groups.append({
+                "group_id": g_id,
+                "name": g_name,
+                "description": g_desc,
+                "account_count": int(cnt),
+                "total_incoming_inr": float(in_amt or 0.0),
+                "total_outgoing_inr": float(out_amt or 0.0)
+            })
+
+        ranked_raw = con.execute("""
+            SELECT 
+                acc, risk_score, in_deg, out_deg,
+                ROUND(in_amt, 2) as in_amt,
+                ROUND(out_amt, 2) as out_amt,
+                ind_pt, ind_fo, ind_fpt, ind_rare, ind_sink
+            FROM temp_case_scored
+            WHERE risk_score >= 30
+            ORDER BY in_amt DESC, acc ASC
+        """).fetchall()
+
+        ranked_accounts = []
+        for rank, r in enumerate(ranked_raw, 1):
+            acc, score, in_deg, out_deg, in_amt, out_amt, pt, fo, fpt, rare, sink = r
+            matched = []
+            if pt: matched.append("pass_through")
+            if fo: matched.append("fan_out")
+            if fpt: matched.append("fast_pass_through")
+            if rare: matched.append("rare_infrastructure")
+            if sink: matched.append("sink")
+
+            ranked_accounts.append({
+                "rank": rank,
+                "account_id": acc,
+                "risk_score": int(score),
+                "in_degree": int(in_deg),
+                "out_degree": int(out_deg),
+                "total_incoming_inr": float(in_amt or 0.0),
+                "total_outgoing_inr": float(out_amt or 0.0),
+                "matched_indicator_names": matched
+            })
+
+        _case_overview_cache = {
+            "groups": groups,
+            "ranked_accounts": ranked_accounts
+        }
+        return _case_overview_cache
+
+@app.get("/api/case-overview")
+def get_case_overview(
+    page: int = Query(1, ge=1, description="Page number (1-based)"),
+    limit: int = Query(10, ge=1, le=1000, description="Max accounts to return per page")
+) -> Dict[str, Any]:
+    """
+    Returns read-only case overview card metrics and exposure ranking:
+    1. Three groups (Layer 1: score 100, Layer 2: rare_infrastructure but score != 100, Sinks: score 40).
+    2. Ranked list of flagged accounts by total incoming INR labeled:
+       'Possible exposure (money that passed through; not proven loss)'.
+    """
+    data = compute_case_overview()
+    all_ranked = data["ranked_accounts"]
+    total_matching = len(all_ranked)
+    start_idx = (page - 1) * limit
+    page_accounts = all_ranked[start_idx : start_idx + limit]
+
+    showing_from = start_idx + 1 if total_matching > 0 and len(page_accounts) > 0 else 0
+    showing_to = min(start_idx + len(page_accounts), total_matching)
+
+    return {
+        "groups": data["groups"],
+        "exposure_ranking": {
+            "label": "Possible exposure (money that passed through; not proven loss)",
+            "total_matching": total_matching,
+            "page": page,
+            "limit": limit,
+            "showing_from": showing_from,
+            "showing_to": showing_to,
+            "accounts": page_accounts
+        }
     }
 
 # Mount static frontend dashboard

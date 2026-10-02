@@ -1,5 +1,6 @@
 from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from .db import get_database_stats, get_db_cursor
 from .data_access import (
@@ -24,6 +25,11 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
+@app.get("/", include_in_schema=False)
+def root():
+    """Redirect root path to interactive forensic dashboard."""
+    return RedirectResponse(url="/dashboard/")
 
 @app.get("/health")
 def health_check() -> Dict[str, Any]:

@@ -148,8 +148,11 @@ FEATURE_COLUMNS = [
     'unique_devices'
 ]
 
-CACHE_FILE_PATH = os.path.join("data", "ml_anomaly_cache.json")
-DEFAULT_DB_PATH = os.path.join("data", "transactions.duckdb")
+from pathlib import Path
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+CACHE_FILE_PATH = str(_PROJECT_ROOT / "data" / "ml_anomaly_cache.json")
+DEFAULT_DB_PATH = str(_PROJECT_ROOT / "data" / "transactions.duckdb")
 
 _IN_MEMORY_CACHE: Optional[Dict[str, Any]] = None
 

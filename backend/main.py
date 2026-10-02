@@ -1,5 +1,5 @@
 from typing import Optional, List, Dict, Any
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from .db import get_database_stats, get_db_cursor
 from .data_access import (
@@ -419,6 +419,79 @@ def get_case_overview(
             "accounts": page_accounts
         }
     }
+
+@app.get("/api/export/master-ledger")
+def export_master_ledger(
+    format: str = Query("csv", pattern="^(csv|json)$", description="Export format: csv or json")
+) -> Any:
+    """
+    Exports all 1,393 flagged accounts across all forensic layers in a single batch file.
+    Provides complete multi-account access without requiring individual lookups.
+    """
+    data = compute_case_overview()
+    all_ranked = data["ranked_accounts"]
+
+    if format == "json":
+        return {
+            "title": "Operation Abhedya-Chakra — Master Forensic Ledger",
+            "total_accounts": len(all_ranked),
+            "groups_summary": data["groups"],
+            "accounts": all_ranked
+        }
+
+    import io
+    import csv
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Rank",
+        "Account_ID",
+        "Bank_Prefix",
+        "Risk_Score",
+        "Forensic_Layer",
+        "Total_Incoming_INR",
+        "Total_Outgoing_INR",
+        "In_Degree",
+        "Out_Degree",
+        "Matched_Indicators"
+    ])
+
+    for acc in all_ranked:
+        score = acc["risk_score"]
+        if score == 100:
+            layer = "Layer 1 (Core Transit)"
+        elif "sink" in acc.get("matched_indicator_names", []) or score == 40:
+            layer = "Sinks (Terminal Endpoint)"
+        elif "rare_infrastructure" in acc.get("matched_indicator_names", []):
+            layer = "Layer 2 (Dispersal)"
+        else:
+            layer = f"Tier {score}"
+
+        bank_prefix = acc["account_id"][:4]
+        indicators_str = "; ".join(acc.get("matched_indicator_names", []))
+
+        writer.writerow([
+            acc["rank"],
+            acc["account_id"],
+            bank_prefix,
+            score,
+            layer,
+            f"{acc['total_incoming_inr']:.2f}",
+            f"{acc['total_outgoing_inr']:.2f}",
+            acc["in_degree"],
+            acc["out_degree"],
+            indicators_str
+        ])
+
+    csv_content = output.getvalue()
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": "attachment; filename=Abhedya_Chakra_Master_Forensic_Ledger.csv"
+        }
+    )
 
 # Mount static frontend dashboard
 from pathlib import Path

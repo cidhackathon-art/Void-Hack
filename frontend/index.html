@@ -930,8 +930,11 @@
             <span>📋 Forensic Case Overview</span>
             <span class="badge" style="background: rgba(56, 189, 248, 0.15); color: var(--accent-cyan); font-family: var(--font-mono); padding: 2px 8px; border-radius: 12px; font-size: 11px;">Read-Only Multi-Layer Analysis</span>
           </div>
-          <div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">
-            Deterministic Columnar Ledger Aggregation
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <button class="btn" onclick="downloadMasterLedgerCSV()" style="background: linear-gradient(135deg, #0284c7, #0369a1); font-size: 11px; padding: 4px 12px; font-weight: 600; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3); border: none; cursor: pointer;">📥 Export All Accounts (CSV)</button>
+            <div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">
+              Deterministic Columnar Ledger Aggregation
+            </div>
           </div>
         </div>
         <div class="panel-body" style="padding: 16px;">
@@ -1019,7 +1022,7 @@
           </div>
 
           <!-- Ranked List Section Header -->
-          <div style="background: var(--bg-dark); border: 1px solid var(--card-border); border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div style="background: var(--bg-dark); border: 1px solid var(--card-border); border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <div>
               <div style="font-size: 13px; font-weight: 700; color: #f1f5f9;">
                 Possible exposure (money that passed through; not proven loss)
@@ -1028,8 +1031,22 @@
                 Ranked flagged accounts by cumulative incoming amount
               </div>
             </div>
-            <div id="overview-showing-text" style="font-size: 11px; font-family: var(--font-mono); color: var(--text-muted);">
-              showing 1 - 10 of 1,393 accounts
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <input type="text" id="ov-search-input" placeholder="🔍 Search accounts (ID, Bank)..." oninput="filterOverviewTable(this.value)" class="search-input" style="padding: 4px 10px; font-size: 11px; width: 190px; height: 28px;">
+              <div style="display: flex; align-items: center; gap: 4px;">
+                <span style="font-size: 11px; color: var(--text-dim);">Show:</span>
+                <select id="ov-page-size-select" onchange="changeOverviewPageSize(this.value)" style="background: var(--card-bg); color: var(--text-main); border: 1px solid var(--card-border); border-radius: 4px; padding: 3px 6px; font-size: 11px; font-family: var(--font-mono); outline: none; cursor: pointer;">
+                  <option value="10">10 / page</option>
+                  <option value="25">25 / page</option>
+                  <option value="50">50 / page</option>
+                  <option value="100">100 / page</option>
+                  <option value="1393">⚡ View All (1,393 Accounts)</option>
+                </select>
+              </div>
+              <button class="btn btn-secondary" onclick="downloadMasterLedgerCSV()" style="padding: 4px 10px; font-size: 11px; border-color: #38bdf8; color: #38bdf8;">📥 CSV</button>
+              <div id="overview-showing-text" style="font-size: 11px; font-family: var(--font-mono); color: var(--text-muted);">
+                showing 1 - 10 of 1,393 accounts
+              </div>
             </div>
           </div>
 
@@ -1683,8 +1700,89 @@
 
     // Case Overview State and Loader
     let currentOverviewPage = 1;
-    const OVERVIEW_PAGE_SIZE = 10;
+    let OVERVIEW_PAGE_SIZE = 10;
     let totalOverviewMatching = 0;
+    let allOverviewAccountsCache = [];
+
+    function downloadMasterLedgerCSV() {
+      showLoading('Preparing Master Forensic Ledger CSV (all 1,393 accounts)...');
+      const link = document.createElement('a');
+      link.href = `${API_BASE}/api/export/master-ledger?format=csv`;
+      link.download = 'Abhedya_Chakra_Master_Forensic_Ledger.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => hideLoading(), 600);
+    }
+
+    function changeOverviewPageSize(val) {
+      OVERVIEW_PAGE_SIZE = parseInt(val) || 10;
+      loadCaseOverview(1);
+    }
+
+    async function filterOverviewTable(term) {
+      term = (term || '').trim().toLowerCase();
+      if (!term) {
+        loadCaseOverview(currentOverviewPage);
+        return;
+      }
+      if (allOverviewAccountsCache.length === 0) {
+        try {
+          const resp = await fetch(`${API_BASE}/api/export/master-ledger?format=json`);
+          const data = await resp.json();
+          allOverviewAccountsCache = data.accounts || [];
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      const filtered = allOverviewAccountsCache.filter(acc => 
+        acc.account_id.toLowerCase().includes(term) ||
+        String(acc.risk_score).includes(term) ||
+        (acc.matched_indicator_names && acc.matched_indicator_names.some(n => n.toLowerCase().includes(term)))
+      );
+      renderOverviewTableRows(filtered, `showing ${filtered.length} matching "${term}"`);
+    }
+
+    function renderOverviewTableRows(accounts, customStatusText = null) {
+      const tbody = document.getElementById('overview-ranked-tbody');
+      if (!tbody) return;
+      if (!accounts || accounts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 16px; color: var(--text-dim);">No accounts found.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = accounts.map(acc => {
+        const s = acc.risk_score;
+        const scoreColor = s >= 100 ? '#ef4444' : (s >= 50 ? '#f97316' : (s >= 40 ? '#f59e0b' : (s >= 30 ? '#eab308' : '#38bdf8')));
+        const inFormatted = '₹' + Number(acc.total_incoming_inr || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        const outFormatted = '₹' + Number(acc.total_outgoing_inr || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        return `
+          <tr>
+            <td class="td-mono" style="text-align: center; color: var(--text-dim);">${acc.rank}</td>
+            <td class="td-mono">
+              <a href="javascript:void(0)" onclick="searchAccount('${acc.account_id}')" style="color: var(--accent-cyan); font-weight: 600; text-decoration: none;">
+                ${acc.account_id}
+              </a>
+            </td>
+            <td class="td-mono"><span style="color: ${scoreColor}; font-weight: 700;">${acc.risk_score} / 100</span></td>
+            <td class="td-mono" style="color: #38bdf8; font-weight: 600;">${inFormatted}</td>
+            <td class="td-mono" style="color: #f87171;">${outFormatted}</td>
+            <td class="td-mono" style="font-size: 11px; color: var(--text-muted);">${acc.in_degree} in / ${acc.out_degree} out</td>
+            <td>
+              <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;" onclick="searchAccount('${acc.account_id}')">
+                Investigate →
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      if (customStatusText) {
+        const elShowTop = document.getElementById('overview-showing-text');
+        const elShowBot = document.getElementById('overview-pagination-status');
+        if (elShowTop) elShowTop.innerText = customStatusText;
+        if (elShowBot) elShowBot.innerText = customStatusText;
+      }
+    }
 
     async function loadCaseOverview(page = 1) {
       try {
@@ -1730,38 +1828,11 @@
         totalOverviewMatching = ranking.total_matching || 0;
         const maxPages = Math.ceil(totalOverviewMatching / OVERVIEW_PAGE_SIZE) || 1;
         const accounts = ranking.accounts || [];
-        const tbody = document.getElementById('overview-ranked-tbody');
 
-        if (tbody) {
-          if (!accounts || accounts.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 16px; color: var(--text-dim);">No accounts found.</td></tr>';
-          } else {
-            tbody.innerHTML = accounts.map(acc => {
-              const s = acc.risk_score;
-              const scoreColor = s >= 100 ? '#ef4444' : (s >= 50 ? '#f97316' : (s >= 40 ? '#f59e0b' : (s >= 30 ? '#eab308' : '#38bdf8')));
-              const inFormatted = '₹' + Number(acc.total_incoming_inr || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-              const outFormatted = '₹' + Number(acc.total_outgoing_inr || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-              return `
-                <tr>
-                  <td class="td-mono" style="text-align: center; color: var(--text-dim);">${acc.rank}</td>
-                  <td class="td-mono">
-                    <a href="javascript:void(0)" onclick="searchAccount('${acc.account_id}')" style="color: var(--accent-cyan); font-weight: 600; text-decoration: none;">
-                      ${acc.account_id}
-                    </a>
-                  </td>
-                  <td class="td-mono"><span style="color: ${scoreColor}; font-weight: 700;">${acc.risk_score} / 100</span></td>
-                  <td class="td-mono" style="color: #38bdf8; font-weight: 600;">${inFormatted}</td>
-                  <td class="td-mono" style="color: #f87171;">${outFormatted}</td>
-                  <td class="td-mono" style="font-size: 11px; color: var(--text-muted);">${acc.in_degree} in / ${acc.out_degree} out</td>
-                  <td>
-                    <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;" onclick="searchAccount('${acc.account_id}')">
-                      Investigate →
-                    </button>
-                  </td>
-                </tr>
-              `;
-            }).join('');
-          }
+        renderOverviewTableRows(accounts);
+
+        if (OVERVIEW_PAGE_SIZE >= 1393 && accounts.length > 0) {
+          allOverviewAccountsCache = accounts;
         }
 
         // Update showing & pagination text

@@ -7,6 +7,9 @@
   
   <!-- Cytoscape for Network Flow Graph -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+  <!-- jsPDF & AutoTable for Instant Crisp Vector PDF Generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <!-- html2pdf for Client-Side Report Export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
@@ -941,7 +944,8 @@
         </div>
         <div style="display: flex; gap: 10px;">
           <button class="btn btn-secondary" onclick="showLandingView()">← Back to Flagged Accounts</button>
-          <button class="btn btn-secondary" onclick="exportPdfReport()">📄 Generate PDF Report</button>
+          <button class="btn" id="btn-main-pdf-dl" style="background: #0284c7;" onclick="exportPdfReport()">📄 Download PDF Report</button>
+          <button class="btn btn-secondary" onclick="openDossierModal()">🖨️ Print / Preview</button>
         </div>
       </div>
 
@@ -1835,29 +1839,22 @@
       document.getElementById('btn-pdf-export').style.display = 'none';
     }
 
-    // Client-Side PDF Report Generation
-    function exportPdfReport() {
-      if (!currentAccountData || !currentExplainData) {
-        alert('Please select an account before generating a report.');
-        return;
-      }
+    // Populate the Printable Dossier Template in DOM
+    function populatePrintableReportTemplate(accId, detectData, explainData) {
+      const ctx = explainData.context || {};
+      const metrics = detectData.metrics || ctx.account_summary || {};
 
-      const accId = currentAccountData.account_id;
-      const ctx = currentExplainData.context || {};
-      const metrics = currentAccountData.metrics || ctx.account_summary || {};
-
-      // Fill Printable Dossier Template
       document.getElementById('pdf-date').innerText = new Date().toISOString();
       document.getElementById('pdf-account-id').innerText = accId;
-      document.getElementById('pdf-score').innerText = `${currentAccountData.risk_score} / 100`;
-      document.getElementById('pdf-score-summary').innerText = currentAccountData.risk_score === 0 
+      document.getElementById('pdf-score').innerText = `${detectData.risk_score} / 100`;
+      document.getElementById('pdf-score-summary').innerText = detectData.risk_score === 0 
         ? 'Account evaluated with baseline distribution. No behavioral indicators matched.' 
-        : `Deterministic score derived from ${currentAccountData.matched_indicators.length} matched pattern indicators.`;
+        : `Deterministic score derived from ${detectData.matched_indicators.length} matched pattern indicators.`;
 
       // Indicators
       const indTbody = document.getElementById('pdf-indicators-tbody');
       indTbody.innerHTML = '';
-      (currentAccountData.matched_indicators || []).forEach(i => {
+      (detectData.matched_indicators || []).forEach(i => {
         indTbody.innerHTML += `
           <tr>
             <td><strong>${i.indicator}</strong></td>
@@ -1866,7 +1863,7 @@
           </tr>
         `;
       });
-      if (!currentAccountData.matched_indicators || currentAccountData.matched_indicators.length === 0) {
+      if (!detectData.matched_indicators || detectData.matched_indicators.length === 0) {
         indTbody.innerHTML = '<tr><td colspan="3">no indicators matched</td></tr>';
       }
 
@@ -1886,7 +1883,7 @@
       }
 
       // Explanation
-      document.getElementById('pdf-explanation').innerText = currentExplainData.explanation || 'N/A';
+      document.getElementById('pdf-explanation').innerText = explainData.explanation || 'N/A';
 
       // Observed Paths
       const pTbody = document.getElementById('pdf-paths-tbody');
@@ -1912,7 +1909,7 @@
       const evTbody = document.getElementById('pdf-evidence-tbody');
       if (evTbody) {
         evTbody.innerHTML = '';
-        const evObj = currentAccountData.evidence_by_indicator || {};
+        const evObj = detectData.evidence_by_indicator || {};
         let evCount = 0;
         for (const [indName, evList] of Object.entries(evObj)) {
           (evList || []).slice(0, 5).forEach(row => {
@@ -1933,8 +1930,332 @@
           evTbody.innerHTML = '<tr><td colspan="6">No transaction evidence records triggered.</td></tr>';
         }
       }
+    }
 
-      // Open Dossier Preview Modal
+    // Direct High-Resolution Vector PDF Generator via jsPDF
+    function generateVectorPdfDossier(accId, detectData, explainData) {
+      const { jsPDF } = window.jspdf || {};
+      if (!jsPDF) {
+        throw new Error('jsPDF not loaded');
+      }
+
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const ctx = explainData.context || {};
+      const metrics = detectData.metrics || ctx.account_summary || {};
+      const score = detectData.risk_score;
+
+      // Header Banner
+      doc.setFillColor(15, 23, 42); // #0f172a
+      doc.rect(0, 0, 210, 24, 'F');
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text('OPERATION ABHEDYA-CHAKRA — INDORE POLICE', 14, 11);
+
+      doc.setTextColor(56, 189, 248);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text('FINANCIAL FORENSIC ANALYSIS DIVISION • AUDITABLE BANKING EVIDENCE DOSSIER', 14, 18);
+
+      doc.setTextColor(203, 213, 225);
+      doc.setFontSize(7.5);
+      doc.text(`DATE: ${new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC`, 140, 11);
+      doc.text(`TARGET ACCOUNT: ${accId}`, 140, 18);
+
+      let curY = 30;
+
+      // 1. Deterministic Risk Assessment Box
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(203, 213, 225);
+      doc.roundedRect(14, curY, 182, 22, 2, 2, 'FD');
+
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.text('1. DETERMINISTIC RISK ASSESSMENT', 18, curY + 6);
+
+      doc.setFontSize(18);
+      if (score >= 70) {
+        doc.setTextColor(220, 38, 38);
+      } else if (score > 0) {
+        doc.setTextColor(217, 119, 6);
+      } else {
+        doc.setTextColor(16, 185, 129);
+      }
+      doc.text(`${score} / 100`, 18, curY + 16);
+
+      doc.setTextColor(71, 85, 105);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      const scoreSummary = score === 0
+        ? 'Account evaluated with baseline distribution. Zero behavioral indicators matched.'
+        : `Deterministic risk score derived from ${(detectData.matched_indicators || []).length} matched behavioral pattern indicators.`;
+      doc.text(doc.splitTextToSize(scoreSummary, 130), 60, curY + 14);
+
+      curY += 27;
+
+      // 2. Matched Indicators Table
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.text('2. MATCHED INDICATORS BREAKDOWN', 14, curY);
+      curY += 3;
+
+      const indRows = (detectData.matched_indicators || []).map(i => [
+        i.indicator || 'N/A',
+        `+${i.contribution || 0} pts`,
+        i.basis || 'Configured pattern envelope met'
+      ]);
+      if (indRows.length === 0) {
+        indRows.push(['no indicators matched', '0 pts', 'Baseline account activity pattern']);
+      }
+
+      if (typeof doc.autoTable === 'function') {
+        doc.autoTable({
+          startY: curY,
+          head: [['Indicator', 'Contribution', 'Measured Envelope & Detection Basis']],
+          body: indRows,
+          theme: 'grid',
+          headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold' },
+          styles: { fontSize: 7.5, cellPadding: 2.2, textColor: [30, 41, 59] },
+          columnStyles: { 0: { cellWidth: 45, fontStyle: 'bold' }, 1: { cellWidth: 26 }, 2: { cellWidth: 'auto' } },
+          margin: { left: 14, right: 14 }
+        });
+        curY = doc.lastAutoTable.finalY + 7;
+      } else {
+        curY += 15;
+      }
+
+      // 3. Flow Summary Metrics Table
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.text('3. ACCOUNT FLOW SUMMARY METRICS', 14, curY);
+      curY += 3;
+
+      const inAmt = metrics.in_amount || metrics.total_incoming_amount || 0;
+      const outAmt = metrics.out_amount || metrics.total_outgoing_amount || 0;
+      const ratioStr = metrics.out_in_ratio !== null ? Number(metrics.out_in_ratio).toFixed(4) : 'N/A';
+      const ips = metrics.distinct_ips || 0;
+      const devs = metrics.distinct_devices || 0;
+
+      const metRows = [
+        ['In-Degree (Depositors)', String(metrics.in_degree || 0), 'Out-Degree (Beneficiaries)', String(metrics.out_degree || 0)],
+        ['Total Inflow', `INR ${Number(inAmt).toLocaleString('en-IN')}`, 'Total Outflow', `INR ${Number(outAmt).toLocaleString('en-IN')}`],
+        ['Out / In Ratio', ratioStr, 'Largest Inflow', `INR ${Number(metrics.largest_in_amount || 0).toLocaleString('en-IN')}`],
+        ['Distinct IPs Associated', String(ips), 'Distinct Device IDs', String(devs)]
+      ];
+
+      if (typeof doc.autoTable === 'function') {
+        doc.autoTable({
+          startY: curY,
+          body: metRows,
+          theme: 'grid',
+          styles: { fontSize: 7.5, cellPadding: 2, textColor: [30, 41, 59] },
+          columnStyles: { 0: { fontStyle: 'bold', cellWidth: 45 }, 1: { cellWidth: 46 }, 2: { fontStyle: 'bold', cellWidth: 45 }, 3: { cellWidth: 46 } },
+          margin: { left: 14, right: 14 }
+        });
+        curY = doc.lastAutoTable.finalY + 7;
+      } else {
+        curY += 20;
+      }
+
+      // 4. Forensic Narrative Explanation
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.text('4. FORENSIC CASE EXPLANATION', 14, curY);
+      curY += 4;
+
+      const expLines = doc.splitTextToSize(explainData.explanation || 'No explanation generated.', 182);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(51, 65, 85);
+      doc.text(expLines, 14, curY);
+      curY += (expLines.length * 3.8) + 6;
+
+      if (curY > 230) {
+        doc.addPage();
+        curY = 20;
+      }
+
+      // 5. Observed Chronological Paths
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.text('5. OBSERVED CHRONOLOGICAL PATHS', 14, curY);
+      curY += 3;
+
+      const pathRows = (ctx.observed_paths || []).map(p => [
+        String(p.in_row_id || 'N/A'),
+        String(p.out_row_id || 'N/A'),
+        `${p.source_account} -> ${p.pivot_account} -> ${p.destination_account}`,
+        `INR ${Number(p.in_amount || 0).toLocaleString('en-IN')}`,
+        `INR ${Number(p.out_amount || 0).toLocaleString('en-IN')}`,
+        String(p.amount_ratio || 'N/A'),
+        `${p.time_gap_seconds || 0}s`
+      ]);
+      if (pathRows.length === 0) {
+        pathRows.push(['-', '-', 'No observed paths recorded.', '-', '-', '-', '-']);
+      }
+
+      if (typeof doc.autoTable === 'function') {
+        doc.autoTable({
+          startY: curY,
+          head: [['In Row', 'Out Row', 'Transit Chain', 'In Amt', 'Out Amt', 'Ratio', 'Time Gap']],
+          body: pathRows,
+          theme: 'grid',
+          headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 7.5, fontStyle: 'bold' },
+          styles: { fontSize: 7, cellPadding: 1.8, textColor: [30, 41, 59] },
+          margin: { left: 14, right: 14 }
+        });
+        curY = doc.lastAutoTable.finalY + 7;
+      } else {
+        curY += 20;
+      }
+
+      if (curY > 240) {
+        doc.addPage();
+        curY = 20;
+      }
+
+      // 6. Matched Evidence Records
+      doc.setTextColor(15, 23, 42);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.text('6. MATCHED TRANSACTION EVIDENCE RECORDS', 14, curY);
+      curY += 3;
+
+      const evRows = [];
+      const evObj = detectData.evidence_by_indicator || {};
+      for (const [indName, evList] of Object.entries(evObj)) {
+        (evList || []).slice(0, 5).forEach(row => {
+          evRows.push([
+            String(row.row_id || 'N/A'),
+            String(row.timestamp || 'N/A'),
+            String(row.sender || 'N/A'),
+            String(row.receiver || 'N/A'),
+            `INR ${Number(row.amount || 0).toLocaleString('en-IN')}`,
+            `${indName}: ${row.reason || 'Envelope matched'}`
+          ]);
+        });
+      }
+      if (evRows.length === 0) {
+        evRows.push(['-', '-', '-', '-', '-', 'No transaction evidence records triggered.']);
+      }
+
+      if (typeof doc.autoTable === 'function') {
+        doc.autoTable({
+          startY: curY,
+          head: [['Row ID', 'Timestamp', 'Sender Account', 'Receiver Account', 'Amount', 'Indicator Context']],
+          body: evRows,
+          theme: 'grid',
+          headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontSize: 7.5, fontStyle: 'bold' },
+          styles: { fontSize: 7, cellPadding: 1.8, textColor: [30, 41, 59] },
+          margin: { left: 14, right: 14 }
+        });
+        curY = doc.lastAutoTable.finalY + 8;
+      }
+
+      if (curY > 250) {
+        doc.addPage();
+        curY = 20;
+      }
+
+      // Statutory Limitations
+      doc.setTextColor(100, 116, 139);
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(7);
+      doc.text('STATUTORY LIMITATIONS: No ground-truth labels exist in dataset; all findings represent observed behavioral patterns only.', 14, curY);
+      doc.text('Possible flow is not physical funds movement. All cutoffs represent documented auditable design choices.', 14, curY + 3.5);
+
+      curY += 10;
+      doc.setDrawColor(203, 213, 225);
+      doc.line(14, curY, 196, curY);
+      curY += 5;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(71, 85, 105);
+      doc.text('INVESTIGATING OFFICER: _________________________', 14, curY);
+      doc.text('CYBER & FINANCIAL CRIME DIVISION', 130, curY);
+
+      doc.setFont('helvetica', 'normal');
+      doc.text('OFFICER BADGE ID:     _________________________', 14, curY + 4.5);
+      doc.text('INDORE POLICE HEADQUARTERS (AUDIT VERIFIED)', 130, curY + 4.5);
+
+      doc.save(`Abhedya_Chakra_Dossier_${accId}.pdf`);
+      return true;
+    }
+
+    // Client-Side PDF Report Generation Entrypoint
+    async function exportPdfReport() {
+      if (!currentAccountData || !currentExplainData) {
+        alert('Please select an account before generating a report.');
+        return;
+      }
+
+      const accId = currentAccountData.account_id;
+      const exportBtns = [
+        document.getElementById('btn-pdf-export'),
+        document.getElementById('btn-main-pdf-dl')
+      ].filter(Boolean);
+
+      exportBtns.forEach(b => {
+        b.dataset.origHtml = b.innerHTML;
+        b.innerHTML = '<span>⏳ Downloading PDF...</span>';
+      });
+
+      // Populate printable template in background
+      populatePrintableReportTemplate(accId, currentAccountData, currentExplainData);
+
+      // Method 1: Instant Vector PDF Download (jsPDF)
+      try {
+        if (window.jspdf && window.jspdf.jsPDF) {
+          generateVectorPdfDossier(accId, currentAccountData, currentExplainData);
+          exportBtns.forEach(b => {
+            b.innerHTML = '<span>✅ PDF Downloaded!</span>';
+            setTimeout(() => { b.innerHTML = b.dataset.origHtml; }, 2500);
+          });
+          return;
+        }
+      } catch (err) {
+        console.warn('Direct jsPDF vector export failed, falling back:', err);
+      }
+
+      // Method 2: html2pdf fallback
+      try {
+        if (typeof html2pdf !== 'undefined') {
+          await triggerHtml2PdfDownloadAsync(accId);
+          exportBtns.forEach(b => {
+            b.innerHTML = '<span>✅ PDF Downloaded!</span>';
+            setTimeout(() => { b.innerHTML = b.dataset.origHtml; }, 2500);
+          });
+          return;
+        }
+      } catch (err) {
+        console.warn('html2pdf fallback failed:', err);
+      }
+
+      // Method 3: Open Print Dialog (Vector Save as PDF)
+      exportBtns.forEach(b => {
+        b.innerHTML = b.dataset.origHtml;
+      });
+      triggerNativePrint();
+    }
+
+    function openDossierModal() {
+      if (!currentAccountData || !currentExplainData) {
+        alert('Please select an account before previewing the dossier.');
+        return;
+      }
+      populatePrintableReportTemplate(currentAccountData.account_id, currentAccountData, currentExplainData);
       document.getElementById('dossier-modal').style.display = 'flex';
     }
 
@@ -1963,8 +2284,22 @@
         btn.disabled = true;
       }
 
+      // Try vector first if available
+      try {
+        if (window.jspdf && window.jspdf.jsPDF) {
+          generateVectorPdfDossier(accId, currentAccountData, currentExplainData);
+          if (btn) {
+            btn.innerHTML = '<span>✅ PDF Downloaded</span>';
+            setTimeout(() => { btn.innerHTML = origBtnHtml; btn.disabled = false; }, 2000);
+          }
+          return;
+        }
+      } catch (e) {
+        console.warn('Vector pdf inside modal fallback:', e);
+      }
+
       if (typeof html2pdf === 'undefined') {
-        alert('Direct PDF compiler unavailable offline. Switching to Native Vector Print...');
+        alert('Direct PDF compiler unavailable. Switching to Native Vector Print...');
         if (btn) { btn.innerHTML = origBtnHtml; btn.disabled = false; }
         triggerNativePrint();
         return;
@@ -1998,6 +2333,27 @@
         console.warn('html2pdf failed, falling back to print:', err);
         if (btn) { btn.innerHTML = origBtnHtml; btn.disabled = false; }
         triggerNativePrint();
+      });
+    }
+
+    function triggerHtml2PdfDownloadAsync(accId) {
+      return new Promise((resolve, reject) => {
+        const el = document.getElementById('printable-report');
+        const opt = {
+          margin: [10, 10, 10, 10],
+          filename: `Abhedya_Chakra_Dossier_${accId}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            scrollY: 0,
+            windowWidth: 1024
+          },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        };
+        html2pdf().set(opt).from(el).save().then(resolve).catch(reject);
       });
     }
   </script>

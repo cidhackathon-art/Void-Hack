@@ -35,7 +35,8 @@ def build_context(
     Consumes detect.py detection results and adds deterministic SQL observed paths.
     """
     cfg = config or load_config()
-    db_p = str(db_path or DEFAULT_DB_PATH)
+    from .db import get_db_path
+    db_p = str(db_path or get_db_path())
     engine = DetectionEngine(db_path=db_p, config=cfg)
 
     owns_conn = con is None

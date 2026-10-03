@@ -296,27 +296,32 @@ def train_and_cache_ml_anomaly(db_path: str = DEFAULT_DB_PATH, cache_file: str =
     _IN_MEMORY_CACHE = cache_data
     return cache_data
 
-def get_ml_anomaly_cache(cache_file: str = CACHE_FILE_PATH, db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
+def get_ml_anomaly_cache(cache_file: Optional[str] = None, db_path: Optional[str] = None) -> Dict[str, Any]:
     """
-    Returns cached ML results, loading from disk or computing once if missing.
+    Returns cached ML results for the active dataset, loading from disk or computing once if missing.
     """
     global _IN_MEMORY_CACHE
     if _IN_MEMORY_CACHE is not None:
         return _IN_MEMORY_CACHE
 
-    if os.path.exists(cache_file):
+    from .db import get_active_dataset, get_db_path
+    active_ds = get_active_dataset()
+    effective_db = db_path or str(get_db_path())
+    effective_cache = cache_file or active_ds.get("ml_cache_path") or CACHE_FILE_PATH
+
+    if os.path.exists(effective_cache):
         try:
-            with open(cache_file, "r", encoding="utf-8") as f:
+            with open(effective_cache, "r", encoding="utf-8") as f:
                 _IN_MEMORY_CACHE = json.load(f)
                 return _IN_MEMORY_CACHE
         except Exception:
             pass
 
-    return train_and_cache_ml_anomaly(db_path=db_path, cache_file=cache_file)
+    return train_and_cache_ml_anomaly(db_path=effective_db, cache_file=effective_cache)
 
-def get_account_ml_anomaly(account_id: str, db_path: str = DEFAULT_DB_PATH) -> Optional[Dict[str, Any]]:
+def get_account_ml_anomaly(account_id: str, db_path: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
-    Retrieves the verified ML Anomaly Signal for a target account.
+    Retrieves the verified ML Anomaly Signal for a target account from the active dataset.
     Returns None if account does not exist.
     """
     try:

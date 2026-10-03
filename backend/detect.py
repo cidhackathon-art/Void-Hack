@@ -29,7 +29,8 @@ def load_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
 
 class DetectionEngine:
     def __init__(self, db_path: Optional[Union[str, Path]] = None, config: Optional[Dict[str, Any]] = None):
-        self.db_path = str(db_path or DEFAULT_DB_PATH)
+        from .db import get_db_path
+        self.db_path = str(db_path or get_db_path())
         self.config = config or load_config()
         self.indicators_cfg = self.config.get("detection_indicators", {})
 

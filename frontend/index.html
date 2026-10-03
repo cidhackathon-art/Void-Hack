@@ -870,7 +870,19 @@
     </div>
 
     <!-- Header Actions -->
-    <div class="header-actions">
+    <div class="header-actions" style="display: flex; align-items: center; gap: 10px;">
+      <div id="dataset-selector-btn" onclick="openDatasetModal()" style="display: flex; align-items: center; gap: 8px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); padding: 5px 12px; border-radius: 6px; cursor: pointer; transition: all 0.15s; user-select: none;" title="Manage & Ingest Datasets">
+        <span style="font-size: 14px;">📁</span>
+        <div style="display: flex; flex-direction: column; text-align: left; line-height: 1.15;">
+          <div style="display: flex; align-items: center; gap: 5px;">
+            <span style="font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent-cyan); font-weight: 700;">Dataset</span>
+            <span class="badge" id="dataset-rowcount-badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; font-size: 9px; padding: 1px 4px; border-radius: 3px; font-family: var(--font-mono);">2.0M</span>
+          </div>
+          <span id="active-dataset-name" style="font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: #fff; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Default 20L Ledger</span>
+        </div>
+        <span style="font-size: 10px; color: var(--text-dim); margin-left: 2px;">▾</span>
+      </div>
+
       <div class="status-badge" id="backend-status">
         <span class="status-dot"></span>
         <span id="backend-engine-txt">DuckDB Columnar Online</span>
@@ -929,17 +941,21 @@
           <div class="panel-title" style="display: flex; align-items: center; gap: 8px;">
             <span>📋 Forensic Case Overview</span>
             <span class="badge" style="background: rgba(56, 189, 248, 0.15); color: var(--accent-cyan); font-family: var(--font-mono); padding: 2px 8px; border-radius: 12px; font-size: 11px;">Read-Only Multi-Layer Analysis</span>
+            <span class="badge" id="overview-active-dataset-tag" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-family: var(--font-mono); padding: 2px 8px; border-radius: 12px; font-size: 11px;">Active: Default 20L Ledger</span>
           </div>
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
             <button class="btn" onclick="downloadUnifiedMasterSheetCSV()" style="background: linear-gradient(135deg, #0284c7, #0369a1); font-size: 11px; padding: 4px 12px; font-weight: 600; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3); border: none; cursor: pointer;" title="Mules aur Clean accounts ek hi sheet mein, samne likha hua ki konsa account mule hai">
               📥 Export Shareable Master Sheet (Mules vs Clean CSV)
             </button>
-            <button class="btn btn-secondary" onclick="downloadMulesOnlyCSV()" style="padding: 4px 10px; font-size: 11px; border-color: #38bdf8; color: #38bdf8;" title="Sirf 1,393 Mule accounts download karne ke liye">
+            <button class="btn btn-secondary" onclick="downloadMulesOnlyCSV()" style="padding: 4px 10px; font-size: 11px; border-color: #38bdf8; color: #38bdf8;" title="Export only flagged mule accounts for the active dataset">
               📥 Mules Only CSV
             </button>
           </div>
         </div>
         <div class="panel-body" style="padding: 16px;">
+          <!-- Dataset Limitation Notice (Shown if active dataset has missing columns) -->
+          <div id="dataset-limitation-banner" style="display: none; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; font-size: 11.5px; color: #fbbf24;"></div>
+
           <!-- 3 Groups Metric Cards Grid -->
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 20px;">
             
@@ -955,15 +971,15 @@
                 <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
                   <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px dashed var(--card-border); padding-bottom: 4px;">
                     <span style="font-size: 11px; color: var(--text-muted);">Account Count</span>
-                    <span id="overview-l1-count" style="font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: #fff;">129</span>
+                    <span id="overview-l1-count" style="font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: #fff;">--</span>
                   </div>
                   <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px dashed var(--card-border); padding-bottom: 4px;">
                     <span style="font-size: 11px; color: var(--text-muted);">Total Incoming INR</span>
-                    <span id="overview-l1-in" style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: #38bdf8;">₹8,47,66,804.55</span>
+                    <span id="overview-l1-in" style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: #38bdf8;">--</span>
                   </div>
                   <div style="display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 2px;">
                     <span style="font-size: 11px; color: var(--text-muted);">Total Outgoing INR</span>
-                    <span id="overview-l1-out" style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: #f87171;">₹8,30,71,468.52</span>
+                    <span id="overview-l1-out" style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: #f87171;">--</span>
                   </div>
                 </div>
               </div>
@@ -981,15 +997,15 @@
                 <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
                   <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px dashed var(--card-border); padding-bottom: 4px;">
                     <span style="font-size: 11px; color: var(--text-muted);">Account Count</span>
-                    <span id="overview-l2-count" style="font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: #fff;">559</span>
+                    <span id="overview-l2-count" style="font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: #fff;">--</span>
                   </div>
                   <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px dashed var(--card-border); padding-bottom: 4px;">
                     <span style="font-size: 11px; color: var(--text-muted);">Total Incoming INR</span>
-                    <span id="overview-l2-in" style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: #38bdf8;">₹8,30,71,468.52</span>
+                    <span id="overview-l2-in" style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: #38bdf8;">--</span>
                   </div>
                   <div style="display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 2px;">
                     <span style="font-size: 11px; color: var(--text-muted);">Total Outgoing INR</span>
-                    <span id="overview-l2-out" style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: #f87171;">₹7,97,48,609.60</span>
+                    <span id="overview-l2-out" style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: #f87171;">--</span>
                   </div>
                 </div>
               </div>
@@ -1007,15 +1023,15 @@
                 <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
                   <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px dashed var(--card-border); padding-bottom: 4px;">
                     <span style="font-size: 11px; color: var(--text-muted);">Account Count</span>
-                    <span id="overview-sinks-count" style="font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: #fff;">385</span>
+                    <span id="overview-sinks-count" style="font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: #fff;">--</span>
                   </div>
                   <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px dashed var(--card-border); padding-bottom: 4px;">
                     <span style="font-size: 11px; color: var(--text-muted);">Total Incoming INR</span>
-                    <span id="overview-sinks-in" style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: #38bdf8;">₹7,97,48,609.60</span>
+                    <span id="overview-sinks-in" style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: #38bdf8;">--</span>
                   </div>
                   <div style="display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 2px;">
                     <span style="font-size: 11px; color: var(--text-muted);">Total Outgoing INR</span>
-                    <span id="overview-sinks-out" style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: #94a3b8;">₹0.00</span>
+                    <span id="overview-sinks-out" style="font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: #94a3b8;">--</span>
                   </div>
                 </div>
               </div>
@@ -1027,36 +1043,26 @@
           <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; align-items: center;">
             <span style="font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px;">Mule Role:</span>
             <button class="btn btn-secondary ov-role-tab" id="ov-role-all" onclick="setOverviewRole('all')" style="padding: 4px 12px; font-size: 11px; border-color: #38bdf8; background: rgba(56, 189, 248, 0.2); color: #fff;">
-              All Mule Accounts (1,393)
+              All Mule Accounts
             </button>
             <button class="btn btn-secondary ov-role-tab" id="ov-role-layer_1" onclick="setOverviewRole('layer_1')" style="padding: 4px 12px; font-size: 11px; border-color: #ef4444; color: #f87171;">
-              🔴 Layer 1 Transit Core (129)
+              🔴 Layer 1 Transit Core
             </button>
             <button class="btn btn-secondary ov-role-tab" id="ov-role-layer_2" onclick="setOverviewRole('layer_2')" style="padding: 4px 12px; font-size: 11px; border-color: #f59e0b; color: #fbbf24;">
-              🟠 Layer 2 Dispersal & Routing (559)
+              🟠 Layer 2 Dispersal & Routing
             </button>
             <button class="btn btn-secondary ov-role-tab" id="ov-role-sink" onclick="setOverviewRole('sink')" style="padding: 4px 12px; font-size: 11px; border-color: #38bdf8; color: #7dd3fc;">
-              🔵 Terminal Cash-Out Sinks (385)
+              🔵 Terminal Cash-Out Sinks
             </button>
             <button class="btn btn-secondary ov-role-tab" id="ov-role-pass_through" onclick="setOverviewRole('pass_through')" style="padding: 4px 12px; font-size: 11px; border-color: #eab308; color: #fde047;">
-              🟡 Pass-Through Nodes (320)
+              🟡 Pass-Through Nodes
             </button>
           </div>
 
           <!-- Bank Distribution Filter Bar -->
-          <div style="display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; background: rgba(15, 23, 42, 0.6); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--card-border);">
+          <div id="ov-bank-chips-container" style="display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; background: rgba(15, 23, 42, 0.6); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--card-border);">
             <span style="font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-right: 4px;">Bank Filter:</span>
-            <span class="chip ov-bank-chip" id="ov-bank-all" onclick="setOverviewBank('all')" style="border-color: #38bdf8; color: #38bdf8; background: rgba(56, 189, 248, 0.15); cursor: pointer; padding: 2px 8px; font-size: 11px;">All Banks (1,393)</span>
-            <span class="chip ov-bank-chip" id="ov-bank-BARB" onclick="setOverviewBank('BARB')" style="cursor: pointer; padding: 2px 8px; font-size: 11px;">BARB (155)</span>
-            <span class="chip ov-bank-chip" id="ov-bank-IPOS" onclick="setOverviewBank('IPOS')" style="cursor: pointer; padding: 2px 8px; font-size: 11px;">IPOS (148)</span>
-            <span class="chip ov-bank-chip" id="ov-bank-SBIN" onclick="setOverviewBank('SBIN')" style="cursor: pointer; padding: 2px 8px; font-size: 11px;">SBIN (147)</span>
-            <span class="chip ov-bank-chip" id="ov-bank-PYTM" onclick="setOverviewBank('PYTM')" style="cursor: pointer; padding: 2px 8px; font-size: 11px;">PYTM (146)</span>
-            <span class="chip ov-bank-chip" id="ov-bank-KKBK" onclick="setOverviewBank('KKBK')" style="cursor: pointer; padding: 2px 8px; font-size: 11px;">KKBK (146)</span>
-            <span class="chip ov-bank-chip" id="ov-bank-AXIS" onclick="setOverviewBank('AXIS')" style="cursor: pointer; padding: 2px 8px; font-size: 11px;">AXIS (140)</span>
-            <span class="chip ov-bank-chip" id="ov-bank-ICIC" onclick="setOverviewBank('ICIC')" style="cursor: pointer; padding: 2px 8px; font-size: 11px;">ICIC (136)</span>
-            <span class="chip ov-bank-chip" id="ov-bank-AIRP" onclick="setOverviewBank('AIRP')" style="cursor: pointer; padding: 2px 8px; font-size: 11px;">AIRP (129)</span>
-            <span class="chip ov-bank-chip" id="ov-bank-HDFC" onclick="setOverviewBank('HDFC')" style="cursor: pointer; padding: 2px 8px; font-size: 11px;">HDFC (123)</span>
-            <span class="chip ov-bank-chip" id="ov-bank-PUNB" onclick="setOverviewBank('PUNB')" style="cursor: pointer; padding: 2px 8px; font-size: 11px;">PUNB (123)</span>
+            <span class="chip ov-bank-chip" id="ov-bank-all" onclick="setOverviewBank('all')" style="border-color: #38bdf8; color: #38bdf8; background: rgba(56, 189, 248, 0.15); cursor: pointer; padding: 2px 8px; font-size: 11px;">All Banks</span>
           </div>
 
           <!-- Forensic Mule Selection Parameters Guide / Reference Bar -->
@@ -1101,12 +1107,12 @@
                   <option value="25">25 / page</option>
                   <option value="50">50 / page</option>
                   <option value="100">100 / page</option>
-                  <option value="1393">⚡ View All (1,393 Accounts)</option>
+                  <option value="2000" id="ov-opt-view-all">⚡ View All Accounts</option>
                 </select>
               </div>
               <button class="btn btn-secondary" onclick="downloadUnifiedMasterSheetCSV()" style="padding: 4px 10px; font-size: 11px; border-color: #38bdf8; color: #38bdf8;" title="Mules aur Clean accounts ek hi sheet mein">📥 Shareable CSV</button>
               <div id="overview-showing-text" style="font-size: 11px; font-family: var(--font-mono); color: var(--text-muted);">
-                showing 1 - 10 of 1,393 accounts
+                Loading accounts...
               </div>
             </div>
           </div>
@@ -1132,13 +1138,13 @@
           </div>
 
           <!-- Ranked Pagination Footer -->
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--bg-dark); border-top: 1px solid var(--card-border); font-size: 12px; flex-wrap: wrap; gap: 8px; border-radius: 0 0 6px 6px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--bg-dark); border-top: 1px solid var(--card-border); font-size: 12px; flex-wrap: gap; border-radius: 0 0 6px 6px;">
             <div id="overview-pagination-status" style="color: var(--text-muted); font-family: var(--font-mono); font-size: 11px;">
-              showing 1 - 10 of 1,393 accounts
+              Loading accounts...
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
               <button class="btn btn-secondary" id="ov-page-prev" style="padding: 3px 10px; font-size: 11px;" onclick="prevOverviewPage()" disabled>← Prev</button>
-              <span id="ov-page-indicator" style="font-family: var(--font-mono); color: var(--text-dim); font-size: 11px;">Page 1 of 140</span>
+              <span id="ov-page-indicator" style="font-family: var(--font-mono); color: var(--text-dim); font-size: 11px;">Page 1</span>
               <button class="btn btn-secondary" id="ov-page-next" style="padding: 3px 10px; font-size: 11px;" onclick="nextOverviewPage()">Next →</button>
             </div>
           </div>
@@ -1151,15 +1157,15 @@
         <div class="panel-header" style="flex-wrap: wrap; gap: 10px;">
           <div class="panel-title">
             <span>⚡ Pattern-Flagged Accounts Ledger</span>
-            <span class="badge" id="flagged-count-badge" style="background: rgba(239,68,68,0.2); color: #f87171; font-family: var(--font-mono); padding: 2px 8px; border-radius: 12px; font-size: 11px;">129 Accounts (Score = 100)</span>
+            <span class="badge" id="flagged-count-badge" style="background: rgba(239,68,68,0.2); color: #f87171; font-family: var(--font-mono); padding: 2px 8px; border-radius: 12px; font-size: 11px;">Loading...</span>
           </div>
           <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
             <span style="font-size: 11px; color: var(--text-dim); margin-right: 2px;">Tier Filter:</span>
-            <button class="btn btn-secondary" id="fl-btn-all" style="padding: 4px 10px; font-size: 11px;" onclick="setFlaggedTier('all')">All Flagged (1,393)</button>
-            <button class="btn btn-secondary" id="fl-btn-100" style="padding: 4px 10px; font-size: 11px; background: rgba(239,68,68,0.2); border-color: #ef4444; color: #fff;" onclick="setFlaggedTier(100)">Score 100 (129)</button>
-            <button class="btn btn-secondary" id="fl-btn-50" style="padding: 4px 10px; font-size: 11px;" onclick="setFlaggedTier(50)">Score 50 (243)</button>
-            <button class="btn btn-secondary" id="fl-btn-40" style="padding: 4px 10px; font-size: 11px;" onclick="setFlaggedTier(40)">Score 40 (385)</button>
-            <button class="btn btn-secondary" id="fl-btn-30" style="padding: 4px 10px; font-size: 11px;" onclick="setFlaggedTier(30)">Score 30 (636)</button>
+            <button class="btn btn-secondary" id="fl-btn-all" style="padding: 4px 10px; font-size: 11px;" onclick="setFlaggedTier('all')">All Flagged</button>
+            <button class="btn btn-secondary" id="fl-btn-100" style="padding: 4px 10px; font-size: 11px; background: rgba(239,68,68,0.2); border-color: #ef4444; color: #fff;" onclick="setFlaggedTier(100)">Score 100</button>
+            <button class="btn btn-secondary" id="fl-btn-50" style="padding: 4px 10px; font-size: 11px;" onclick="setFlaggedTier(50)">Score 50</button>
+            <button class="btn btn-secondary" id="fl-btn-40" style="padding: 4px 10px; font-size: 11px;" onclick="setFlaggedTier(40)">Score 40</button>
+            <button class="btn btn-secondary" id="fl-btn-30" style="padding: 4px 10px; font-size: 11px;" onclick="setFlaggedTier(30)">Score 30</button>
           </div>
         </div>
         <div class="panel-body" style="padding: 0;">
@@ -1181,11 +1187,11 @@
           <!-- Pagination & Showing Status Footer -->
           <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: var(--bg-dark); border-top: 1px solid var(--card-border); font-size: 12px; flex-wrap: wrap; gap: 8px;">
             <div id="flagged-showing-text" style="color: var(--text-muted); font-family: var(--font-mono);">
-              Showing 1 - 50 of 129 accounts
+              Loading accounts...
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
               <button class="btn btn-secondary" id="fl-page-prev" style="padding: 3px 10px; font-size: 11px;" onclick="prevFlaggedPage()" disabled>← Prev</button>
-              <span id="fl-page-indicator" style="font-family: var(--font-mono); color: var(--text-dim); font-size: 11px;">Page 1 of 3</span>
+              <span id="fl-page-indicator" style="font-family: var(--font-mono); color: var(--text-dim); font-size: 11px;">Page 1</span>
               <button class="btn btn-secondary" id="fl-page-next" style="padding: 3px 10px; font-size: 11px;" onclick="nextFlaggedPage()">Next →</button>
             </div>
           </div>
@@ -1544,6 +1550,75 @@
     </div>
   </div>
 
+  <!-- Active Dataset & Ingestion Modal -->
+  <div id="dataset-modal" class="dossier-modal-backdrop" onclick="if(event.target===this)closeDatasetModal()">
+    <div class="dossier-modal-container" style="width: 880px; max-width: 96vw;">
+      <div class="dossier-modal-header" style="background: #111827; border-bottom: 1px solid var(--card-border);">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 20px;">📁</span>
+          <div>
+            <div style="font-weight: 700; color: #fff; font-size: 15px; display: flex; align-items: center; gap: 8px;">
+              <span>Dataset Manager & Forensic Ingestion Layer</span>
+              <span class="badge" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-size: 10px; font-family: var(--font-mono);">DuckDB Columnar Store</span>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+              Select active analysis dataset or ingest a new CSV/Excel transaction file
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-secondary" onclick="closeDatasetModal()" style="padding: 4px 10px; font-size: 12px;">✕ Close</button>
+      </div>
+
+      <div class="dossier-modal-body" style="padding: 20px; background: #090d16; display: block; overflow-y: auto; max-height: 80vh;">
+        <!-- Immutability Notice -->
+        <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 6px; padding: 12px 14px; margin-bottom: 18px; font-size: 12px; line-height: 1.5; color: var(--text-main);">
+          <strong style="color: #34d399;">🔒 Master Store Immutability:</strong> The primary 20-lakh transaction database (<code style="font-family: var(--font-mono); color: #38bdf8;">data/transactions.duckdb</code>) is strictly read-only and preserved. Any new uploaded dataset is verified, schema-detected, and isolated in its own DuckDB database with its own ML baseline cache.
+        </div>
+
+        <!-- Ingest New Dataset Section -->
+        <div style="background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+          <div style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+            <span>⚡</span> Ingest New Transaction Dataset (CSV / Excel)
+          </div>
+          <p style="font-size: 11.5px; color: var(--text-dim); margin-bottom: 12px;">
+            Upload a financial transaction ledger (.csv, .xlsx, .xls). Canonical columns (Sender, Receiver, Amount, Timestamp, etc.) will be automatically mapped.
+          </p>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end;">
+            <div>
+              <label style="display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 4px; font-weight: 600;">Dataset File (.csv, .xlsx, .xls)</label>
+              <input type="file" id="dataset-file-input" accept=".csv, .xlsx, .xls" style="font-size: 11px; color: var(--text-main); background: var(--bg-dark); border: 1px solid var(--card-border); border-radius: 6px; padding: 6px; width: 100%; box-sizing: border-box;" />
+            </div>
+            <div>
+              <label style="display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 4px; font-weight: 600;">Custom Dataset Label (Optional)</label>
+              <input type="text" id="dataset-name-input" placeholder="e.g. Test Ledger Batch 2" style="font-size: 11px; color: var(--text-main); background: var(--bg-dark); border: 1px solid var(--card-border); border-radius: 6px; padding: 7px 10px; width: 100%; box-sizing: border-box;" />
+            </div>
+            <div>
+              <button class="btn" id="btn-upload-dataset" onclick="handleDatasetUpload()" style="background: linear-gradient(135deg, #0284c7, #0369a1); font-size: 12px; padding: 7px 16px; font-weight: 600; white-space: nowrap; height: 32px;">
+                🚀 Ingest & Activate
+              </button>
+            </div>
+          </div>
+
+          <div id="dataset-upload-status" style="margin-top: 10px; font-size: 11.5px; display: none;"></div>
+        </div>
+
+        <!-- Available Datasets Section -->
+        <div>
+          <div style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <span>Available Datasets in Analytical Registry</span>
+            <button class="btn btn-secondary" onclick="renderDatasetList()" style="font-size: 10.5px; padding: 2px 8px;">🔄 Refresh List</button>
+          </div>
+
+          <div id="dataset-list-container" style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="text-align: center; color: var(--text-dim); padding: 16px; font-size: 12px;">Loading available datasets...</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
   <!-- Bulk Mule Intelligence Extraction Modal -->
   <div id="bulk-mule-modal" class="dossier-modal-backdrop" onclick="if(event.target===this)closeBulkMuleModal()">
     <div class="dossier-modal-container" style="width: 980px; max-width: 96vw;">
@@ -1551,7 +1626,7 @@
         <div>
           <div style="font-weight: 700; color: #fff; font-size: 15px; display: flex; align-items: center; gap: 8px;">
             <span>⚡</span>
-            <span>All Mule Accounts Forensic Intelligence (1,393 Accounts)</span>
+            <span id="bulk-mule-modal-title">All Mule Accounts Forensic Intelligence</span>
             <span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #f87171; font-size: 11px; font-family: var(--font-mono);">Consolidated Network</span>
           </div>
           <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
@@ -1803,8 +1878,244 @@
         .replace(/'/g, '&#039;');
     }
 
+    // Active Dataset Management State & Handlers
+    let currentActiveDataset = null;
+
+    async function loadActiveDatasetInfo() {
+      try {
+        const resp = await fetch(`${API_BASE}/api/dataset/active`);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        currentActiveDataset = data;
+
+        // Navbar active dataset name & row count badge
+        const elName = document.getElementById('active-dataset-name');
+        if (elName) elName.innerText = data.name || 'Active Dataset';
+
+        const elBadge = document.getElementById('dataset-rowcount-badge');
+        if (elBadge) {
+          const rows = Number(data.row_count || 0);
+          elBadge.innerText = rows >= 1000000 ? `${(rows/1000000).toFixed(1)}M` : (rows >= 1000 ? `${(rows/1000).toFixed(0)}k` : `${rows}`);
+        }
+
+        // Notification banner telemetry tag
+        const elTelem = document.getElementById('dataset-telemetry-tag');
+        if (elTelem) {
+          elTelem.innerText = `${data.name} • ${Number(data.row_count || 0).toLocaleString()} Verified Transactions`;
+        }
+
+        // Case overview tag
+        const elOvTag = document.getElementById('overview-active-dataset-tag');
+        if (elOvTag) {
+          elOvTag.innerText = `Active: ${data.name}`;
+        }
+
+        // Schema limitations banner
+        const elLimitation = document.getElementById('dataset-limitation-banner');
+        if (elLimitation) {
+          if (data.limitations && data.limitations.length > 0) {
+            elLimitation.style.display = 'block';
+            elLimitation.innerHTML = `<strong>⚠️ Dataset Schema Notice:</strong> ${escapeHtml(data.limitations.join(' • '))}`;
+          } else {
+            elLimitation.style.display = 'none';
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching active dataset metadata:', err);
+      }
+    }
+
+    async function openDatasetModal() {
+      const modal = document.getElementById('dataset-modal');
+      if (modal) {
+        modal.style.display = 'flex';
+        await renderDatasetList();
+      }
+    }
+
+    function closeDatasetModal() {
+      const modal = document.getElementById('dataset-modal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function renderDatasetList() {
+      const container = document.getElementById('dataset-list-container');
+      if (!container) return;
+      container.innerHTML = '<div style="text-align: center; color: var(--text-dim); padding: 12px; font-size: 11px;">Loading datasets...</div>';
+
+      try {
+        const resp = await fetch(`${API_BASE}/api/dataset/list`);
+        if (!resp.ok) throw new Error('Failed to fetch dataset list');
+        const data = await resp.json();
+
+        const activeId = data.active_dataset ? data.active_dataset.dataset_id : (currentActiveDataset?.dataset_id);
+        const datasets = data.datasets || [];
+
+        let html = '';
+        datasets.forEach(ds => {
+          const isActive = ds.dataset_id === activeId;
+          const isDefault = ds.is_default;
+          const rowCountFmt = Number(ds.row_count || 0).toLocaleString();
+          const accCountFmt = Number(ds.accounts_count || 0).toLocaleString();
+
+          html += `
+            <div style="background: ${isActive ? 'rgba(56, 189, 248, 0.08)' : 'var(--card-bg)'}; border: 1px solid ${isActive ? '#38bdf8' : 'var(--card-border)'}; border-radius: 6px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                  <span style="font-size: 13px; font-weight: 700; color: ${isActive ? '#38bdf8' : '#fff'};">${escapeHtml(ds.name)}</span>
+                  ${isActive ? '<span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; font-size: 10px; font-weight: 700;">ACTIVE NOW</span>' : ''}
+                  ${isDefault ? '<span class="badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-size: 10px;">Master 20L Baseline</span>' : '<span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; font-size: 10px;">Isolated Ingestion</span>'}
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">
+                  <span>Rows: <strong>${rowCountFmt}</strong></span> • 
+                  <span>Accounts: <strong>${accCountFmt}</strong></span> • 
+                  <span>Ingested: ${new Date(ds.created_at || Date.now()).toLocaleDateString()}</span>
+                </div>
+                ${ds.unsupported_indicators && ds.unsupported_indicators.length > 0 ? `
+                  <div style="font-size: 10.5px; color: #f59e0b; margin-top: 4px;">
+                    ⚠️ Schema limitation: Missing fields for ${ds.unsupported_indicators.join(', ')}
+                  </div>
+                ` : ''}
+              </div>
+              <div>
+                ${isActive ? `
+                  <button class="btn btn-secondary" disabled style="opacity: 0.8; font-size: 11px; padding: 4px 12px; cursor: default; border-color: #38bdf8; color: #38bdf8;">
+                    ✓ Active
+                  </button>
+                ` : `
+                  <button class="btn" onclick="switchActiveDataset('${ds.dataset_id}')" style="background: linear-gradient(135deg, #0284c7, #0369a1); font-size: 11px; padding: 4px 14px; font-weight: 600;">
+                    Activate ➔
+                  </button>
+                `}
+              </div>
+            </div>
+          `;
+        });
+
+        container.innerHTML = html;
+      } catch (err) {
+        container.innerHTML = `<div style="color: #f87171; font-size: 11px;">Error loading datasets: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    async function switchActiveDataset(datasetId) {
+      showLoading(`Switching active dataset to ${datasetId}...`);
+      try {
+        const resp = await fetch(`${API_BASE}/api/dataset/switch/${encodeURIComponent(datasetId)}`, {
+          method: 'POST'
+        });
+        if (!resp.ok) {
+          const err = await resp.json();
+          throw new Error(err.detail || 'Switch failed');
+        }
+        const res = await resp.json();
+
+        // Reset pagination and filters
+        currentOverviewRole = 'all';
+        currentOverviewBank = 'all';
+        currentOverviewPage = 1;
+        currentFlaggedPage = 1;
+        allOverviewAccountsCache = [];
+
+        // Reload overview, flagged ledger, and active dataset info
+        await Promise.all([
+          loadActiveDatasetInfo(),
+          loadCaseOverview(1),
+          loadFlaggedAccounts()
+        ]);
+
+        // If currently viewing an account dossier, return to landing view since account might not exist in new dataset
+        const dossierView = document.getElementById('account-dossier-view');
+        const landingView = document.getElementById('landing-view');
+        if (dossierView && landingView && dossierView.style.display !== 'none') {
+          dossierView.style.display = 'none';
+          landingView.style.display = 'block';
+        }
+
+        closeDatasetModal();
+        hideLoading();
+      } catch (e) {
+        hideLoading();
+        alert(`Failed to switch dataset: ${e.message}`);
+      }
+    }
+
+    async function handleDatasetUpload() {
+      const fileInput = document.getElementById('dataset-file-input');
+      const nameInput = document.getElementById('dataset-name-input');
+      const statusDiv = document.getElementById('dataset-upload-status');
+      const btn = document.getElementById('btn-upload-dataset');
+
+      if (!fileInput.files || fileInput.files.length === 0) {
+        alert('Please select a CSV or Excel file to upload.');
+        return;
+      }
+
+      const file = fileInput.files[0];
+      const formData = new FormData();
+      formData.append('file', file);
+      if (nameInput.value.trim()) {
+        formData.append('dataset_name', nameInput.value.trim());
+      }
+
+      btn.disabled = true;
+      statusDiv.style.display = 'block';
+      statusDiv.style.color = '#38bdf8';
+      statusDiv.innerHTML = '⏳ Uploading file, validating schema, and creating isolated analytical store...';
+
+      try {
+        const url = nameInput.value.trim() 
+          ? `${API_BASE}/api/dataset/upload?dataset_name=${encodeURIComponent(nameInput.value.trim())}`
+          : `${API_BASE}/api/dataset/upload`;
+
+        const resp = await fetch(url, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json();
+          throw new Error(err.detail || 'Ingestion failed');
+        }
+
+        const res = await resp.json();
+        statusDiv.style.color = '#34d399';
+        statusDiv.innerHTML = `✓ Successfully ingested <strong>${res.dataset.row_count.toLocaleString()} rows</strong> (${res.dataset.accounts_count.toLocaleString()} accounts). Active dataset switched!`;
+
+        // Clear file inputs
+        fileInput.value = '';
+        nameInput.value = '';
+
+        // Reset pagination and filters
+        currentOverviewRole = 'all';
+        currentOverviewBank = 'all';
+        currentOverviewPage = 1;
+        currentFlaggedPage = 1;
+        allOverviewAccountsCache = [];
+
+        // Reload active dataset info & overview
+        await Promise.all([
+          loadActiveDatasetInfo(),
+          loadCaseOverview(1),
+          loadFlaggedAccounts(),
+          renderDatasetList()
+        ]);
+
+        setTimeout(() => {
+          closeDatasetModal();
+        }, 1500);
+
+      } catch (err) {
+        statusDiv.style.color = '#f87171';
+        statusDiv.innerHTML = `❌ Error: ${escapeHtml(err.message)}`;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
     // Initialization
     window.addEventListener('DOMContentLoaded', () => {
+      loadActiveDatasetInfo();
       checkBackendHealth();
       loadFlaggedAccounts();
       loadCaseOverview();
@@ -1921,15 +2232,15 @@
         if (data.tier_summary) {
           const ts = data.tier_summary;
           const btnAll = document.getElementById('fl-btn-all');
-          if (btnAll) btnAll.innerText = `All Flagged (${(ts.total_flagged || 1393).toLocaleString()})`;
+          if (btnAll) btnAll.innerText = `All Flagged (${Number(ts.total_flagged ?? 0).toLocaleString()})`;
           const b100 = document.getElementById('fl-btn-100');
-          if (b100) b100.innerText = `Score 100 (${ts.tier_100 || 129})`;
+          if (b100) b100.innerText = `Score 100 (${Number(ts.tier_100 ?? 0).toLocaleString()})`;
           const b50 = document.getElementById('fl-btn-50');
-          if (b50) b50.innerText = `Score 50 (${ts.tier_50 || 243})`;
+          if (b50) b50.innerText = `Score 50 (${Number(ts.tier_50 ?? 0).toLocaleString()})`;
           const b40 = document.getElementById('fl-btn-40');
-          if (b40) b40.innerText = `Score 40 (${ts.tier_40 || 385})`;
+          if (b40) b40.innerText = `Score 40 (${Number(ts.tier_40 ?? 0).toLocaleString()})`;
           const b30 = document.getElementById('fl-btn-30');
-          if (b30) b30.innerText = `Score 30 (${ts.tier_30 || 636})`;
+          if (b30) b30.innerText = `Score 30 (${Number(ts.tier_30 ?? 0).toLocaleString()})`;
         }
 
         // Update showing & pagination text
@@ -2035,7 +2346,7 @@
     }
 
     function downloadMulesOnlyCSV() {
-      showLoading('Preparing Mule Accounts Only Master Sheet (1,393 accounts)...');
+      showLoading('Preparing Mule Accounts Only Master Sheet for active dataset...');
       const link = document.createElement('a');
       link.href = `${API_BASE}/api/export/master-ledger?format=csv&include_clean=false&view=mules_only`;
       link.download = 'Abhedya_Chakra_Master_Forensic_Ledger_Mules_Only.csv';
@@ -2419,7 +2730,7 @@
     }
 
     async function openBulkMuleModal() {
-      showLoading('Extracting consolidated mule network intelligence (1,393 accounts)...');
+      showLoading('Extracting consolidated mule network intelligence for active dataset...');
       if (allOverviewAccountsCache.length === 0) {
         try {
           const resp = await fetch(`${API_BASE}/api/export/master-ledger?format=json`);
@@ -2435,11 +2746,11 @@
       const content = document.getElementById('bulk-mule-modal-content');
       if (!modal || !content) return;
 
-      const totalAccs = allOverviewAccountsCache.length || 1393;
-      const l1Count = allOverviewAccountsCache.filter(a => a.risk_score === 100).length || 129;
-      const l2Count = allOverviewAccountsCache.filter(a => a.role_type === 'layer_2').length || 559;
-      const sinkCount = allOverviewAccountsCache.filter(a => a.role_type === 'sink' || a.risk_score === 40).length || 385;
-      const ptCount = allOverviewAccountsCache.filter(a => a.role_type === 'pass_through').length || 320;
+      const totalAccs = allOverviewAccountsCache.length;
+      const l1Count = allOverviewAccountsCache.filter(a => a.risk_score === 100).length;
+      const l2Count = allOverviewAccountsCache.filter(a => a.role_type === 'layer_2').length;
+      const sinkCount = allOverviewAccountsCache.filter(a => a.role_type === 'sink' || a.risk_score === 40).length;
+      const ptCount = allOverviewAccountsCache.filter(a => a.role_type === 'pass_through').length;
 
       content.innerHTML = `
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 16px;">
@@ -2575,6 +2886,12 @@
         if (!resp.ok) throw new Error('Failed to load case overview');
         const data = await resp.json();
 
+        // Update Overview Active Dataset Tag
+        const elOvTag = document.getElementById('overview-active-dataset-tag');
+        if (elOvTag && currentActiveDataset) {
+          elOvTag.innerText = `Active: ${currentActiveDataset.name}`;
+        }
+
         // Populate 3 Groups cards
         if (data.groups && Array.isArray(data.groups)) {
           data.groups.forEach(g => {
@@ -2607,6 +2924,44 @@
           });
         }
 
+        // Populate Role summaries tabs with dynamic counts
+        if (data.role_summary && Array.isArray(data.role_summary)) {
+          data.role_summary.forEach(rs => {
+            const roleId = rs.role_id;
+            const cnt = Number(rs.count || 0).toLocaleString();
+            if (roleId === 'all') {
+              const b = document.getElementById('ov-role-all');
+              if (b) b.innerText = `All Mule Accounts (${cnt})`;
+            } else if (roleId === 'layer_1') {
+              const b = document.getElementById('ov-role-layer_1');
+              if (b) b.innerText = `🔴 Layer 1 Transit Core (${cnt})`;
+            } else if (roleId === 'layer_2') {
+              const b = document.getElementById('ov-role-layer_2');
+              if (b) b.innerText = `🟠 Layer 2 Dispersal & Routing (${cnt})`;
+            } else if (roleId === 'sink') {
+              const b = document.getElementById('ov-role-sink');
+              if (b) b.innerText = `🔵 Terminal Cash-Out Sinks (${cnt})`;
+            } else if (roleId === 'pass_through') {
+              const b = document.getElementById('ov-role-pass_through');
+              if (b) b.innerText = `🟡 Pass-Through Nodes (${cnt})`;
+            }
+          });
+        }
+
+        // Populate Bank Filter chips dynamically
+        const bankContainer = document.getElementById('ov-bank-chips-container');
+        if (bankContainer && data.bank_summary && Array.isArray(data.bank_summary)) {
+          const totalAllBanks = data.role_summary ? (data.role_summary.find(r => r.role_id === 'all')?.count || totalOverviewMatching) : totalOverviewMatching;
+          let bankHtml = `<span style="font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-right: 4px;">Bank Filter:</span>`;
+          const allActive = currentOverviewBank === 'all';
+          bankHtml += `<span class="chip ov-bank-chip" id="ov-bank-all" onclick="setOverviewBank('all')" style="${allActive ? 'border-color: #38bdf8; color: #38bdf8; background: rgba(56, 189, 248, 0.15);' : ''} cursor: pointer; padding: 2px 8px; font-size: 11px;">All Banks (${Number(totalAllBanks).toLocaleString()})</span>`;
+          data.bank_summary.forEach(b => {
+            const isAct = currentOverviewBank === b.bank_code;
+            bankHtml += `<span class="chip ov-bank-chip" id="ov-bank-${b.bank_code}" onclick="setOverviewBank('${b.bank_code}')" style="${isAct ? 'border-color: #38bdf8; color: #38bdf8; background: rgba(56, 189, 248, 0.15);' : ''} cursor: pointer; padding: 2px 8px; font-size: 11px;">${b.bank_code} (${Number(b.count).toLocaleString()})</span>`;
+          });
+          bankContainer.innerHTML = bankHtml;
+        }
+
         // Populate Ranked Table
         const ranking = data.exposure_ranking || {};
         totalOverviewMatching = ranking.total_matching || 0;
@@ -2615,8 +2970,40 @@
 
         renderOverviewTableRows(accounts);
 
-        if (OVERVIEW_PAGE_SIZE >= 1393 && accounts.length > 0) {
+        // Update Option View All label
+        const optAll = document.getElementById('ov-opt-view-all');
+        if (optAll) {
+          const totalAll = data.role_summary ? (data.role_summary.find(r => r.role_id === 'all')?.count || totalOverviewMatching) : totalOverviewMatching;
+          optAll.innerText = `⚡ View All (${Number(totalAll).toLocaleString()} Accounts)`;
+        }
+
+        if (OVERVIEW_PAGE_SIZE >= totalOverviewMatching && accounts.length > 0) {
           allOverviewAccountsCache = accounts;
+        }
+
+        // Dynamically update Quick Sample chips if on a custom dataset
+        if (currentActiveDataset && !currentActiveDataset.is_default && accounts.length > 0) {
+          const chipsContainer = document.getElementById('quick-samples-chips');
+          const judgeBtn = document.getElementById('btn-judge-demo');
+          if (judgeBtn && accounts[0]) {
+            judgeBtn.innerText = `▶ Investigate Top Ranked (${accounts[0].account_id})`;
+            judgeBtn.onclick = () => searchAccount(accounts[0].account_id);
+          }
+          if (chipsContainer) {
+            let chipsHtml = '';
+            accounts.slice(0, 7).forEach(acc => {
+              const color = acc.risk_score >= 100 ? '#ef4444' : (acc.risk_score >= 50 ? '#f59e0b' : '#38bdf8');
+              chipsHtml += `<span class="chip" style="border-color: ${color}; color: ${color}; font-weight: 600;" onclick="searchAccount('${acc.account_id}')">${acc.account_id} (Score ${acc.risk_score})</span>`;
+            });
+            chipsContainer.innerHTML = chipsHtml;
+          }
+        }
+
+        // Update bulk mule modal title
+        const bulkTitle = document.getElementById('bulk-mule-modal-title');
+        if (bulkTitle) {
+          const totalAll = data.role_summary ? (data.role_summary.find(r => r.role_id === 'all')?.count || totalOverviewMatching) : totalOverviewMatching;
+          bulkTitle.innerText = `All Mule Accounts Forensic Intelligence (${Number(totalAll).toLocaleString()} Accounts)`;
         }
 
         // Update showing & pagination text

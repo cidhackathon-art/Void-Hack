@@ -1,5 +1,7 @@
+import time
+from pathlib import Path
 from typing import Optional, List, Dict, Any
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import FastAPI, HTTPException, Query, Response, File, UploadFile
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from .db import get_database_stats, get_db_cursor
@@ -43,6 +45,91 @@ def health_check() -> Dict[str, Any]:
         "engine": "DuckDB Columnar Engine",
         "database": db_stats
     }
+
+# =============================================================================
+# Dynamic Dataset Ingestion & Active Dataset Management API
+# =============================================================================
+from .ingestion import ingest_dataset_file, activate_dataset_by_id, load_dataset_registry
+from .db import get_active_dataset, reset_to_default_dataset
+
+@app.get("/api/dataset/active")
+def get_current_active_dataset() -> Dict[str, Any]:
+    """
+    Returns information about the current active analysis dataset.
+    """
+    return get_active_dataset()
+
+@app.get("/api/dataset/list")
+def list_available_datasets() -> Dict[str, Any]:
+    """
+    Lists all available transaction datasets registered in the system.
+    """
+    registry = load_dataset_registry()
+    active_ds = get_active_dataset()
+    return {
+        "active_dataset_id": active_ds.get("dataset_id", "default"),
+        "datasets": list(registry.values())
+    }
+
+@app.post("/api/dataset/switch/{dataset_id}")
+def switch_active_dataset(dataset_id: str) -> Dict[str, Any]:
+    """
+    Switches the active forensic dataset to the specified dataset_id (or 'default').
+    All subsequent detection, scoring, graph, and ML queries operate on this dataset.
+    """
+    try:
+        new_active = activate_dataset_by_id(dataset_id)
+        return {
+            "status": "success",
+            "message": f"Active dataset switched to '{new_active.get('name')}'.",
+            "active_dataset": new_active
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/dataset/upload")
+async def upload_new_dataset(
+    file: UploadFile = File(...),
+    dataset_name: Optional[str] = Query(None, description="Optional custom name for the dataset")
+) -> Dict[str, Any]:
+    """
+    Ingests an uploaded CSV or Excel transaction file into an isolated DuckDB store,
+    validates schemas, trains an isolated ML anomaly baseline, and activates it.
+    The original 20-lakh transaction database is NEVER modified.
+    """
+    ext = Path(file.filename).suffix.lower()
+    if ext not in [".csv", ".xlsx", ".xls"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file format '{ext}'. Upload must be a CSV (.csv) or Excel (.xlsx, .xls) file."
+        )
+
+    temp_dir = Path(__file__).resolve().parent.parent / "data" / "uploads"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    temp_file = temp_dir / f"upload_{int(time.time())}_{file.filename}"
+
+    try:
+        content = await file.read()
+        with open(temp_file, "wb") as f:
+            f.write(content)
+
+        meta = ingest_dataset_file(
+            file_path=temp_file,
+            dataset_name=dataset_name or Path(file.filename).stem
+        )
+
+        active_info = activate_dataset_by_id(meta["dataset_id"])
+
+        return {
+            "status": "success",
+            "message": f"Dataset '{meta['name']}' ingested ({meta['row_count']:,} rows, {meta.get('accounts_count', 0):,} accounts) and set as active analysis dataset.",
+            "dataset": meta,
+            "active_dataset": active_info
+        }
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ingestion failed: {str(e)}")
 
 @app.get("/account/{account_id}")
 def get_account(account_id: str) -> Dict[str, Any]:
@@ -621,12 +708,13 @@ def compute_case_overview() -> Dict[str, Any]:
             for code, count in Counter(a["bank_prefix"] for a in ranked_accounts).most_common()
         ]
 
+        role_counts = Counter(a.get("role_type") for a in ranked_accounts)
         role_summary = [
             {"role_id": "all", "label": "All Mule Accounts", "count": len(ranked_accounts)},
-            {"role_id": "layer_1", "label": "Layer 1 Transit Core", "count": 129},
-            {"role_id": "layer_2", "label": "Layer 2 Dispersal & Routing", "count": 559},
-            {"role_id": "sink", "label": "Terminal Cash-Out Sinks", "count": 385},
-            {"role_id": "pass_through", "label": "Secondary Pass-Through Nodes", "count": 320}
+            {"role_id": "layer_1", "label": "Layer 1 Transit Core", "count": role_counts.get("layer_1", 0)},
+            {"role_id": "layer_2", "label": "Layer 2 Dispersal & Routing", "count": role_counts.get("layer_2", 0)},
+            {"role_id": "sink", "label": "Terminal Cash-Out Sinks", "count": role_counts.get("sink", 0)},
+            {"role_id": "pass_through", "label": "Secondary Pass-Through Nodes", "count": role_counts.get("pass_through", 0)}
         ]
 
         _case_overview_cache = {

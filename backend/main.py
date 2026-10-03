@@ -194,6 +194,7 @@ from .guardrails import validate
 from .trace import trace_onward_flow
 from .data_access import get_connected_accounts, get_transaction_by_row_id, get_connected_summary
 from .ml_anomaly import get_account_ml_anomaly
+from .police_legal import generate_police_case_diary, generate_sec91_freeze_notice
 
 _detection_engine: Optional[DetectionEngine] = None
 
@@ -250,6 +251,37 @@ def explain_account(
         "guardrail_status": guardrail_result,
         "context": context
     }
+
+@app.get("/api/police/case-diary/{account_id}")
+def get_police_case_diary_endpoint(account_id: str) -> Dict[str, Any]:
+    """
+    Automated FIR & Case Diary Generation:
+    Summarizes the money trail narrative into a chronological police case diary:
+    - Total funds siphoned from victim
+    - Layer-wise accounts identified with timestamps and exact amounts
+    - Current holding accounts recommended for immediate freezing
+    - Strict Anti-Hallucination Guardrail verification
+    """
+    if not account_exists(account_id):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Account '{account_id}' not found in transaction records."
+        )
+    return generate_police_case_diary(account_id)
+
+@app.get("/api/police/freeze-notice/{account_id}")
+def get_police_freeze_notice_endpoint(account_id: str) -> Dict[str, Any]:
+    """
+    Automated Legal Freeze Requisition (Sec. 91 CrPC / Section 94 BNSS Format):
+    Generates pre-formatted, printable official notice addressed to Nodal Officers of respective banks
+    (SBI, HDFC, ICICI, etc.) with exact beneficiary account numbers, IFSCs, and disputed transaction IDs.
+    """
+    if not account_exists(account_id):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Account '{account_id}' not found in transaction records."
+        )
+    return generate_sec91_freeze_notice(account_id)
 
 @app.get("/api/connected/{account_id}")
 def get_account_connected(

@@ -38,17 +38,17 @@ CANONICAL_COLUMNS = [
 COLUMN_SYNONYMS: Dict[str, List[str]] = {
     "Transaction_ID": [
         "transaction_id", "transactionid", "txn_id", "txnid",
-        "reference_no", "ref_no", "utr", "trans_id", "tx_id"
+        "reference_no", "ref_no", "utr", "trans_id", "tx_id", "id"
     ],
     "Sender_Account": [
         "sender_account", "senderaccount", "sender", "from_account",
         "fromaccount", "remitter_account", "remitter", "source_account",
-        "sender_acc", "from_acc", "debit_account"
+        "source", "sender_acc", "from_acc", "debit_account"
     ],
     "Receiver_Account": [
         "receiver_account", "receiveraccount", "receiver", "to_account",
-        "toaccount", "beneficiary_account", "beneficiary", "dest_account",
-        "receiver_acc", "to_acc", "credit_account"
+        "toaccount", "beneficiary_account", "beneficiary", "payee",
+        "dest_account", "receiver_acc", "to_acc", "credit_account"
     ],
     "Sender_IFSC": [
         "sender_ifsc", "senderifsc", "from_ifsc", "fromifsc",
@@ -59,8 +59,8 @@ COLUMN_SYNONYMS: Dict[str, List[str]] = {
         "beneficiary_ifsc", "dest_ifsc", "receiver_bank_code"
     ],
     "Amount": [
-        "amount", "txn_amount", "transaction_amount", "amt",
-        "txn_amt", "value", "inr", "total_amount"
+        "amount", "amt", "inr", "txn_amount", "transaction_amount",
+        "txn_amt", "value", "total_amount"
     ],
     "Timestamp": [
         "timestamp", "txn_timestamp", "date_time", "datetime",
@@ -81,32 +81,47 @@ COLUMN_SYNONYMS: Dict[str, List[str]] = {
     ]
 }
 
-def detect_column_mapping(columns: List[str]) -> Tuple[Dict[str, str], List[str], List[str]]:
+def normalize_column_name(col: Any) -> str:
+    """Trims whitespace, strips quotes, and normalizes harmless casing and separators."""
+    if col is None:
+        return ""
+    s = str(col).strip().strip("'\"").strip()
+    s = s.replace("\ufeff", "").replace("\u00a0", " ")
+    clean = re.sub(r'[\s\-_./]+', '_', s.lower()).strip('_')
+    return clean
+
+def detect_column_mapping(columns: List[Any], verbose: bool = True) -> Tuple[Dict[str, str], List[str], List[str]]:
     """
     Detects unambiguous column mapping from uploaded column headers to canonical columns.
+    Normalizes column names before mandatory-column validation:
+    - trim whitespace
+    - normalize harmless casing differences
+    - preserve the canonical column names
     Returns:
     (mapped_dict, missing_optional_fields, missing_mandatory_fields)
     """
-    normalized_incoming = {}
+    normalized_incoming: Dict[str, str] = {}
     for col in columns:
-        clean = re.sub(r'[\s\-_]+', '_', col.strip().lower())
-        normalized_incoming[clean] = col
+        clean = normalize_column_name(col)
+        if clean:
+            normalized_incoming[clean] = str(col).strip()
 
-    mapping = {}
-    unmapped_canonical = []
+    mapping: Dict[str, str] = {}
+    unmapped_canonical: List[str] = []
 
     for canonical, synonyms in COLUMN_SYNONYMS.items():
         found = False
-        # Direct check
-        clean_canon = canonical.lower()
+        clean_canon = normalize_column_name(canonical)
+        # 1. Direct canonical check
         if clean_canon in normalized_incoming:
             mapping[canonical] = normalized_incoming[clean_canon]
             found = True
         else:
-            # Synonym check
+            # 2. Synonym / alias check
             for syn in synonyms:
-                if syn in normalized_incoming:
-                    mapping[canonical] = normalized_incoming[syn]
+                clean_syn = normalize_column_name(syn)
+                if clean_syn in normalized_incoming:
+                    mapping[canonical] = normalized_incoming[clean_syn]
                     found = True
                     break
         if not found:
@@ -115,6 +130,13 @@ def detect_column_mapping(columns: List[str]) -> Tuple[Dict[str, str], List[str]
     mandatory = ["Sender_Account", "Receiver_Account", "Amount"]
     missing_mandatory = [m for m in mandatory if m not in mapping]
     missing_optional = [m for m in unmapped_canonical if m not in mandatory]
+
+    if verbose:
+        print(f"[Schema Mapping] Original columns        : {list(columns)}")
+        print(f"[Schema Mapping] Normalized columns      : {list(normalized_incoming.keys())}")
+        print(f"[Schema Mapping] Resolved sender column  : {mapping.get('Sender_Account')}")
+        print(f"[Schema Mapping] Resolved receiver column: {mapping.get('Receiver_Account')}")
+        print(f"[Schema Mapping] Resolved amount column  : {mapping.get('Amount')}")
 
     return mapping, missing_optional, missing_mandatory
 
